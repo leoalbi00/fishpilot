@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design tokens — FishPilot AI
+   Estetica: quadro strumenti da plancia / ecoscandaglio notturno.
+   Con Tailwind v4, ogni --color-* / --font-* genera automaticamente
+   le utility corrispondenti (bg-abyss, text-signal, font-display, ...).
+   ============================================================ */
+@theme inline {
+  --color-abyss: #061620;
+  --color-depth: #0e2a3d;
+  --color-hull: #163b52;
+  --color-signal: #ffb238;
+  --color-tide: #2dd4bf;
+  --color-foam: #eaf6f6;
+  --color-danger: #ff6b57;
+
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-work-sans);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-abyss);
+  color: var(--color-foam);
+  font-family: var(--font-body);
+}
+
+/* Texture di sfondo ispirata alle linee batimetriche delle carte nautiche:
+   pochi cerchi concentrici a bassissima opacità + due aloni di colore. */
+.chart-texture {
+  position: relative;
+  isolation: isolate;
+}
+
+.chart-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--color-abyss);
+  background-image: radial-gradient(
+      circle at 12% 8%,
+      rgba(45, 212, 191, 0.1),
+      transparent 45%
+    ),
+    radial-gradient(circle at 88% 0%, rgba(255, 178, 56, 0.08), transparent 40%),
+    repeating-radial-gradient(
+      circle at 50% 0%,
+      transparent 0,
+      transparent 120px,
+      rgba(234, 246, 246, 0.035) 121px,
+      rgba(234, 246, 246, 0.035) 122px
+    );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chart-texture::before {
+    animation: drift 45s linear infinite alternate;
+  }
+}
+
+@keyframes drift {
+  from {
+    background-position:
+      0 0,
+      0 0,
+      0 0;
+  }
+  to {
+    background-position:
+      0 0,
+      0 0,
+      0 80px;
+  }
+}
+
+/* Focus visibile per accessibilità da tastiera */
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+}
+
+::selection {
+  background-color: var(--color-tide);
+  color: var(--color-abyss);
+}
+
+/* MapLibre: rimuove il fondo bianco durante il caricamento tile */
+.maplibregl-map {
+  background-color: var(--color-depth);
+}
