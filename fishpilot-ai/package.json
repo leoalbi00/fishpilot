@@ -17,6 +17,7 @@
     "@supabase/ssr": "^0.5.2"
   },
   "devDependencies": {
+    "@netlify/plugin-nextjs": "^5.15.13",
     "typescript": "^5.6.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
