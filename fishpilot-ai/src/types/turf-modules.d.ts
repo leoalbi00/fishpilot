@@ -27,3 +27,33 @@ declare module "@turf/length" {
     options?: { units?: string }
   ): number;
 }
+
+declare module "@turf/line-intersect" {
+  import type { Feature, FeatureCollection, LineString, Point } from "geojson";
+
+  export default function lineIntersect(
+    line1: Feature<LineString>,
+    line2: Feature<LineString>
+  ): FeatureCollection<Point>;
+}
+
+declare module "@turf/bearing" {
+  import type { Feature, Point } from "geojson";
+
+  export default function bearing(
+    start: Feature<Point>,
+    end: Feature<Point>,
+    options?: { final?: boolean }
+  ): number;
+}
+
+declare module "@turf/destination" {
+  import type { Feature, Point } from "geojson";
+
+  export default function destination(
+    origin: Feature<Point>,
+    distance: number,
+    bearing: number,
+    options?: { units?: string }
+  ): Feature<Point>;
+}

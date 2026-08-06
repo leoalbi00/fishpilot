@@ -11,8 +11,11 @@
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.45.0",
+    "@turf/bearing": "^6.5.0",
+    "@turf/destination": "^6.5.0",
     "@turf/helpers": "^6.5.0",
     "@turf/length": "^6.5.0",
+    "@turf/line-intersect": "^6.5.0",
     "@turf/rhumb-distance": "^6.5.0",
     "geojson-path-finder": "^1.5.3",
     "maplibre-gl": "^4.7.1",

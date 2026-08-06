@@ -151,7 +151,8 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
       )}
 
       <p className="inline-flex flex-wrap items-center gap-1.5 text-[11px] font-mono text-foam/50 bg-abyss/50 border border-hull/40 rounded-full px-3 py-1.5">
-        📡 Fonte Rotta: Searoute Nautical Network · Fonte Meteo: Open-Meteo Marine (ECMWF live)
+        📡 Fonte Rotta: Searoute Nautical Network + Coast Avoidance (costa OSM) · Fonte Meteo:
+        Open-Meteo Marine (ECMWF live)
       </p>
 
       <div className="space-y-3">
@@ -295,6 +296,7 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
       <DataSourcesFooter
         sources={[
           "Rotta: Searoute Nautical Network (rete marittima precalcolata, offline)",
+          "Aggiramento costa nelle tratte brevi: costa OpenStreetMap (Overpass API) + geometria Turf.js",
           "Meteo/mare lungo la rotta: Open-Meteo Marine + Forecast API (ECMWF live)",
           "Porti di rifugio e calendario traversata: OpenStreetMap (Overpass API) + Open-Meteo",
           "Segnalamenti nautici sulla mappa: OpenSeaMap",

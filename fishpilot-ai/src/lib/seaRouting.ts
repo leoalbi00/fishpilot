@@ -55,6 +55,7 @@ import length from "@turf/length";
 import type { Feature, FeatureCollection, LineString } from "geojson";
 import marnet from "searoute-js/data/marnet_densified.json";
 import { haversineDistanceM } from "@/lib/utils";
+import { avoidCoast } from "@/lib/coastAvoidance";
 
 const network = marnet as unknown as FeatureCollection<LineString>;
 const METERS_PER_NM = 1852;
@@ -117,12 +118,14 @@ export function snapToSea(
   return best;
 }
 
-/** Calcola il percorso via mare tra due punti, aggirando la terraferma
- * sulla rete marittima precalcolata. Ritorna null se la rete non copre la
- * zona, non trova un percorso, o il percorso trovato è geometricamente
- * assurdo rispetto alla linea d'aria (rete troppo rada in quel tratto di
- * costa): il chiamante ricade sulla linea diretta, mai un'eccezione. */
-export function computeSeaRoute(
+/** Rete marittima precalcolata (searoute-js): buona per le tratte lunghe
+ * in mare aperto, spesso senza risoluzione sufficiente per le tratte
+ * costiere brevi (vedi computeSeaRoute sotto, che aggiunge un secondo
+ * livello con lib/coastAvoidance.ts per questi casi). Ritorna null se la
+ * rete non copre la zona, non trova un percorso, o il percorso trovato è
+ * geometricamente assurdo rispetto alla linea d'aria (rete troppo rada in
+ * quel tratto di costa): mai un'eccezione. */
+function computeSeaRouteViaNetwork(
   from: { latitude: number; longitude: number },
   to: { latitude: number; longitude: number }
 ): SeaRouteResult | null {
@@ -171,4 +174,33 @@ export function computeSeaRoute(
   } catch {
     return null;
   }
+}
+
+/** Calcola il percorso via mare tra due punti, in due livelli:
+ * 1) la rete marittima precalcolata di searoute-js (computeSeaRouteViaNetwork
+ *    sopra), efficace per le tratte lunghe in mare aperto;
+ * 2) se non trova nulla di plausibile (tipico per le tratte costiere
+ *    brevi, dove quella rete non ha risoluzione sufficiente — es. Maratea
+ *    -> Praia a Mare), il Coast Avoidance di lib/coastAvoidance.ts: se la
+ *    linea diretta A→B attraversa la costa reale (OpenStreetMap), calcola
+ *    waypoint al largo che la aggirano.
+ * Ritorna null solo se nessuno dei due livelli produce un percorso
+ * plausibile: il chiamante ricade sulla linea diretta, mai un'eccezione. */
+export async function computeSeaRoute(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number }
+): Promise<SeaRouteResult | null> {
+  const networkResult = computeSeaRouteViaNetwork(from, to);
+  if (networkResult) return networkResult;
+
+  const avoided = await avoidCoast(from, to);
+  if (!avoided || avoided.length < 2) return null;
+
+  const line: Feature<LineString> = turfLineString(avoided);
+  const distanceNm = length(line, { units: "miles" }) * 1.15078;
+
+  return {
+    coordinates: avoided,
+    distanceNm,
+  };
 }

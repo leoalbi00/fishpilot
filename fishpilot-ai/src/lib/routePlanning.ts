@@ -185,10 +185,11 @@ export async function planRoute(input: RoutePlanningInput): Promise<RoutePlan> {
   for (let i = 0; i < waypoints.length - 1; i++) {
     const from = waypoints[i];
     const to = waypoints[i + 1];
-    // Rotta via mare stimata (rete marittima precalcolata, offline): usata
-    // per distanza/ETA e per disegnare un percorso più realistico quando
+    // Rotta via mare stimata (rete marittima precalcolata + fallback Coast
+    // Avoidance per le tratte corte, vedi lib/seaRouting.ts): usata per
+    // distanza/ETA e per disegnare un percorso più realistico quando
     // disponibile; altrimenti si ricade sulla linea diretta (già presente).
-    const seaRoute = computeSeaRoute(from, to);
+    const seaRoute = await computeSeaRoute(from, to);
     const distanceNm = seaRoute?.distanceNm ?? haversineDistanceM(from, to) / METERS_PER_NM;
     const bearingDeg = initialBearingDeg(from, to);
 
