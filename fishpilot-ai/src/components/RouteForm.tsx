@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { saveLocalRoute } from "@/lib/localRoute";
 
 interface WaypointField {
   id: string;
@@ -122,7 +123,16 @@ export default function RouteForm() {
         throw new Error(data.error ?? "Calcolo rotta non riuscito.");
       }
 
-      router.push(`/traversata/${data.routeId}`);
+      if (data.routeId) {
+        router.push(`/traversata/${data.routeId}`);
+      } else if (data.plan) {
+        // Rotta calcolata ma non salvata su Supabase: mostrata comunque
+        // tramite il fallback locale (vedi lib/localRoute.ts).
+        saveLocalRoute(data.plan);
+        router.push("/traversata/local");
+      } else {
+        throw new Error("Risposta inattesa dal server.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore imprevisto.");
       setLoading(false);

@@ -3,7 +3,7 @@ import { geocodeLocation, reverseGeocode } from "@/lib/geocode";
 import { planRoute } from "@/lib/routePlanning";
 import { findRefugePorts, attachRouteWarnings } from "@/lib/refugePorts";
 import { createClient } from "@/lib/supabase/server";
-import type { GeocodedPlace } from "@/types/fishing";
+import type { GeocodedPlace, RoutePlanResult } from "@/types/fishing";
 
 interface WaypointInput {
   location?: string;
@@ -84,36 +84,46 @@ export async function POST(req: NextRequest) {
     const refugePortsRaw = await findRefugePorts(plan.waypoints);
     const refugePorts = attachRouteWarnings(refugePortsRaw, plan.legs);
 
-    const supabase = await createClient();
-    const { data: routeRow, error } = await supabase
-      .from("route_plans")
-      .insert({
-        cruise_speed_kn: plan.cruiseSpeedKn,
-        fuel_l_per_hour: plan.fuelLPerHour ?? null,
-        waypoints: plan.waypoints,
-        legs: plan.legs,
-        refuge_ports: refugePorts,
-        total_distance_nm: plan.totalDistanceNm,
-        total_duration_hours: plan.totalDurationHours,
-        fuel_liters_estimate: plan.fuelLitersEstimate ?? null,
-        departure: plan.departureISO,
-        utc_offset_seconds: plan.utcOffsetSeconds,
-      })
-      .select()
-      .single();
+    // Il salvataggio su Supabase non deve mai bloccare la visualizzazione
+    // della rotta: se fallisce (tabella non ancora creata, rete assente,
+    // credenziali mancanti...) si continua con routeId null e il client
+    // mostra comunque il risultato tramite il fallback locale.
+    let routeId: string | null = null;
+    try {
+      const supabase = await createClient();
+      const { data: routeRow, error } = await supabase
+        .from("route_plans")
+        .insert({
+          cruise_speed_kn: plan.cruiseSpeedKn,
+          fuel_l_per_hour: plan.fuelLPerHour ?? null,
+          waypoints: plan.waypoints,
+          legs: plan.legs,
+          refuge_ports: refugePorts,
+          total_distance_nm: plan.totalDistanceNm,
+          total_duration_hours: plan.totalDurationHours,
+          fuel_liters_estimate: plan.fuelLitersEstimate ?? null,
+          departure: plan.departureISO,
+          utc_offset_seconds: plan.utcOffsetSeconds,
+        })
+        .select()
+        .single();
 
-    if (error || !routeRow) {
-      console.error("Errore inserimento route_plan:", error);
-      return NextResponse.json(
-        {
-          error:
-            "Errore nel salvataggio della rotta su Supabase. Controlla di aver eseguito supabase/schema.sql.",
-        },
-        { status: 500 }
-      );
+      if (error || !routeRow) {
+        console.error("Salvataggio route_plan non riuscito, proseguo senza persistenza:", error);
+      } else {
+        routeId = routeRow.id;
+      }
+    } catch (err) {
+      console.error("Supabase non raggiungibile per route_plans, proseguo senza persistenza:", err);
     }
 
-    return NextResponse.json({ routeId: routeRow.id });
+    const result: RoutePlanResult = {
+      ...plan,
+      refugePorts,
+      persisted: routeId !== null,
+    };
+
+    return NextResponse.json({ routeId, plan: result });
   } catch (err) {
     console.error("Errore /api/route:", err);
     const message =

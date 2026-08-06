@@ -249,6 +249,16 @@ export interface RefugePort {
   warning?: string;
 }
 
+/** Piano di rotta completo, così come mostrato a schermo: usato sia dalla
+ * pagina persistita (/traversata/[id], letta da Supabase) sia dal fallback
+ * locale (/traversata/local, quando il salvataggio su Supabase non è
+ * andato a buon fine) — vedi RouteResultsView. */
+export interface RoutePlanResult extends RoutePlan {
+  refugePorts: RefugePort[];
+  /** false se la rotta non è stata salvata su Supabase (nessun link condivisibile). */
+  persisted: boolean;
+}
+
 // ============================================================
 // ⚓ Previsione Notturna (Rada)
 // ============================================================
