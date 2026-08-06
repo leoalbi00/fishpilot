@@ -100,13 +100,14 @@ export async function analyzeTrip(
         pressureHpa: weather.pressureHpa,
         waveHeightM: marine.waveHeightM,
         wavePeriodS: marine.wavePeriodS,
+        waveDirectionDeg: marine.waveDirectionDeg,
         windSpeedKmh: weather.windSpeedKmh,
         windDirectionDeg: weather.windDirectionDeg,
         currentSpeedKmh: marine.currentSpeedKmh,
         currentDirectionDeg: marine.currentDirectionDeg,
       };
 
-      return { zone, result, time };
+      return { zone, result, time, utcOffsetSeconds: weather.utcOffsetSeconds };
     })
   );
 
@@ -120,7 +121,13 @@ export async function analyzeTrip(
     destination,
     season,
     time: primarySample.time,
-    primary: primarySample.result,
+    primary: {
+      ...primarySample.result,
+      conditions: {
+        ...primarySample.result.conditions,
+        utcOffsetSeconds: primarySample.utcOffsetSeconds,
+      },
+    },
     zones: sampled.map((s) => s.zone),
   };
 }

@@ -88,3 +88,34 @@ export function degToCompass(deg: number): string {
   const index = Math.round(normalized / 45) % 8;
   return COMPASS_LABELS[index];
 }
+
+/** Formatta un istante ISO (UTC) come ora locale HH:MM dello spot, dato il
+ * suo offset UTC in secondi (risolto da Open-Meteo, DST incluso). Evita di
+ * dipendere da un database di fusi orari lato client/server. */
+export function formatLocalTime(isoUTC: string, utcOffsetSeconds: number): string {
+  const shifted = new Date(new Date(isoUTC).getTime() + utcOffsetSeconds * 1000);
+  return shifted.toLocaleTimeString("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
+const EARTH_RADIUS_M = 6371000;
+
+/** Distanza in metri tra due coordinate (formula dell'emisenoverso). */
+export function haversineDistanceM(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number }
+): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+
+  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
+}

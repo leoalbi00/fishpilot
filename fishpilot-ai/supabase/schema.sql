@@ -146,7 +146,20 @@ create table if not exists public.favorite_spots (
   technique text not null default 'bolentino' check (
     technique in ('traina', 'bolentino', 'spinning', 'jigging', 'drifting')
   ),
+  -- Fondale registrato manualmente dall'utente (modulo Rada: tenuta ancora).
+  seabed_type text not null default 'sconosciuto' check (
+    seabed_type in ('sabbia', 'posidonia', 'roccia', 'fango', 'misto', 'sconosciuto')
+  ),
   created_at timestamptz not null default now()
+);
+
+-- Migrazione per database creati prima del modulo Rada.
+alter table public.favorite_spots
+  add column if not exists seabed_type text not null default 'sconosciuto';
+
+alter table public.favorite_spots drop constraint if exists favorite_spots_seabed_type_check;
+alter table public.favorite_spots add constraint favorite_spots_seabed_type_check check (
+  seabed_type in ('sabbia', 'posidonia', 'roccia', 'fango', 'misto', 'sconosciuto')
 );
 
 alter table public.favorite_spots enable row level security;

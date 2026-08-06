@@ -61,7 +61,7 @@ export default async function MapPage({
 
         <Link
           href={`/dashboard/${report.id}`}
-          className="inline-flex items-center gap-2 text-sm text-foam/70 hover:text-tide transition-colors"
+          className="min-h-[44px] inline-flex items-center gap-2 text-sm text-foam/70 hover:text-tide transition-colors"
         >
           ← Torna al rapporto
         </Link>

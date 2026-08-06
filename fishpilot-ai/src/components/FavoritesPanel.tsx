@@ -88,7 +88,7 @@ export default function FavoritesPanel() {
                 type="button"
                 onClick={() => handleQuickLoad(spot)}
                 disabled={loadingId === spot.id}
-                className="rounded-lg bg-signal text-abyss px-3 py-2 text-xs font-display font-semibold disabled:opacity-50"
+                className="min-h-[44px] rounded-lg bg-signal text-abyss px-3.5 py-2 text-xs font-display font-semibold active:scale-[0.97] transition-transform disabled:opacity-50"
               >
                 {loadingId === spot.id ? "…" : "Analizza →"}
               </button>
@@ -96,7 +96,7 @@ export default function FavoritesPanel() {
                 type="button"
                 onClick={() => handleRemove(spot.id)}
                 aria-label="Rimuovi dai preferiti"
-                className="text-foam/40 hover:text-danger text-sm px-1"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-foam/40 hover:text-danger text-sm"
               >
                 ✕
               </button>

@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import ScoreGauge from "@/components/ScoreGauge";
-import SpeciesList from "@/components/SpeciesList";
-import RecommendationsCard from "@/components/RecommendationsCard";
 import ConditionsCard from "@/components/ConditionsCard";
 import FavoriteButton from "@/components/FavoriteButton";
+import DashboardModeView from "@/components/DashboardModeView";
 import { createClient } from "@/lib/supabase/server";
+import { computeSolunar } from "@/lib/solunar";
+import { computeTide } from "@/lib/tides";
 import type {
   ConditionsSummary,
   FishingTechnique,
@@ -70,6 +71,15 @@ export default async function DashboardPage({
   // In modalità Spot c'è un solo punto (indice 0), in modalità Tratta il
   // punto medio (indice 1) rappresenta la zona di pesca principale.
   const primaryZone = report.zones?.[Math.floor((report.zones?.length ?? 1) / 2)];
+  const utcOffsetSeconds = report.conditions.utcOffsetSeconds ?? 0;
+
+  // Tabelle solunari e marea: pura astronomia (nessuna chiamata di rete),
+  // calcolate qui a partire da data/posizione dello spot.
+  const referenceDate = trip ? new Date(trip.date) : new Date();
+  const spotLatitude = trip?.start_lat ?? primaryZone?.latitude ?? 0;
+  const spotLongitude = trip?.start_lng ?? primaryZone?.longitude ?? 0;
+  const solunar = computeSolunar(referenceDate, spotLatitude, spotLongitude);
+  const tide = computeTide(referenceDate, spotLongitude);
 
   const formattedDate = trip
     ? new Date(trip.date).toLocaleString("it-IT", {
@@ -125,17 +135,16 @@ export default async function DashboardPage({
           <div className="space-y-6 w-full">
             <ConditionsCard conditions={report.conditions} zone={primaryZone} />
 
-            <div>
-              <h2 className="font-display text-foam text-lg mb-3">
-                Specie probabili
-              </h2>
-              <SpeciesList species={report.species} />
-            </div>
-
-            <RecommendationsCard
-              recommendations={report.recommendations}
+            <DashboardModeView
               species={report.species}
+              recommendations={report.recommendations}
               technique={trip?.technique ?? ""}
+              primaryZone={primaryZone}
+              spotLatitude={spotLatitude}
+              spotLongitude={spotLongitude}
+              solunar={solunar}
+              tide={tide}
+              utcOffsetSeconds={utcOffsetSeconds}
             />
           </div>
         </div>

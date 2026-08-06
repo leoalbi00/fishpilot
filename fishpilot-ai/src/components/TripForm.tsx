@@ -130,7 +130,7 @@ export default function TripForm() {
           type="button"
           onClick={() => setMode("spot")}
           aria-pressed={mode === "spot"}
-          className={`rounded-md px-3 py-2 text-sm font-body transition-colors ${
+          className={`min-h-[44px] rounded-md px-3 py-2 text-sm font-body transition-colors active:scale-[0.97] ${
             mode === "spot"
               ? "bg-signal text-abyss font-medium"
               : "text-foam/60 hover:text-foam"
@@ -142,7 +142,7 @@ export default function TripForm() {
           type="button"
           onClick={() => setMode("tratta")}
           aria-pressed={mode === "tratta"}
-          className={`rounded-md px-3 py-2 text-sm font-body transition-colors ${
+          className={`min-h-[44px] rounded-md px-3 py-2 text-sm font-body transition-colors active:scale-[0.97] ${
             mode === "tratta"
               ? "bg-signal text-abyss font-medium"
               : "text-foam/60 hover:text-foam"
@@ -188,7 +188,7 @@ export default function TripForm() {
               type="button"
               onClick={handleGeolocate}
               disabled={locating}
-              className="w-full flex items-center justify-center gap-2 rounded-lg border border-tide/50 text-tide px-4 py-2.5 text-sm font-body hover:bg-tide/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-lg border border-tide/50 text-tide px-4 py-2.5 text-sm font-body hover:bg-tide/10 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               📍 {locating ? "Rilevamento in corso…" : "Usa la mia posizione attuale"}
             </button>
@@ -241,7 +241,7 @@ export default function TripForm() {
               type="button"
               onClick={() => setTechnique(t.value)}
               aria-pressed={technique === t.value}
-              className={`rounded-lg px-2 py-2.5 text-sm font-body border transition-colors ${
+              className={`min-h-[44px] rounded-lg px-2 py-2.5 text-sm font-body border transition-colors active:scale-[0.97] ${
                 technique === t.value
                   ? "bg-signal text-abyss border-signal font-medium"
                   : "border-hull/50 text-foam/70 hover:border-tide/60"
@@ -288,7 +288,7 @@ export default function TripForm() {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-signal text-abyss font-display font-semibold py-3.5 text-base tracking-wide transition-all hover:shadow-[0_0_25px_rgba(255,178,56,0.45)] disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full min-h-[52px] rounded-lg bg-signal text-abyss font-display font-semibold py-3.5 text-base tracking-wide transition-all hover:shadow-[0_0_25px_rgba(255,178,56,0.45)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? "Analisi in corso…" : "Analizza pesca"}
       </button>

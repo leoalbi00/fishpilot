@@ -6,7 +6,10 @@
    Con Tailwind v4, ogni --color-* / --font-* genera automaticamente
    le utility corrispondenti (bg-abyss, text-signal, font-display, ...).
    ============================================================ */
-@theme inline {
+/* Non "inline": deve restare risolvibile via var() a runtime, così le
+   utility (bg-abyss, text-signal, ...) seguono i temi Sole Alto/Notte
+   ridefiniti più sotto su [data-theme]. */
+@theme {
   --color-abyss: #061620;
   --color-depth: #0e2a3d;
   --color-hull: #163b52;
@@ -14,7 +17,11 @@
   --color-tide: #2dd4bf;
   --color-foam: #eaf6f6;
   --color-danger: #ff6b57;
+}
 
+/* "inline": next/font inietta le sue variabili su una classe scoped
+   sull'<html>, quindi vanno risolte qui per essere referenziabili. */
+@theme inline {
   --font-display: var(--font-space-grotesk);
   --font-body: var(--font-work-sans);
   --font-mono: var(--font-jetbrains-mono);
@@ -22,6 +29,37 @@
 
 html {
   color-scheme: dark;
+}
+
+/* ============================================================
+   Modalità Barca — temi visivi
+   Giorno: palette di default sopra.
+   Sole Alto: massimo contrasto per la lettura sotto sole diretto
+     (niente mezzitoni: nero pieno, bianco pieno, bordi sempre visibili).
+   Notte: toni rossi monocromatici per preservare la visione notturna
+     (nessun blu/bianco che disabitua l'occhio al buio).
+   Ridefiniscono le stesse --color-* del tema sopra: essendo il blocco
+   @theme NON "inline", tutte le utility (bg-abyss, text-foam, ...) le
+   seguono automaticamente via var(), incluse le varianti /opacità.
+   ============================================================ */
+:root[data-theme="sunhigh"] {
+  --color-abyss: #000000;
+  --color-depth: #050505;
+  --color-hull: #ffffff;
+  --color-signal: #ffc93c;
+  --color-tide: #00e5cc;
+  --color-foam: #ffffff;
+  --color-danger: #ff3b30;
+}
+
+:root[data-theme="night"] {
+  --color-abyss: #0a0202;
+  --color-depth: #170606;
+  --color-hull: #401010;
+  --color-signal: #ff5533;
+  --color-tide: #a83232;
+  --color-foam: #f2b8a8;
+  --color-danger: #ff4433;
 }
 
 body {
@@ -63,6 +101,24 @@ body {
   .chart-texture::before {
     animation: drift 45s linear infinite alternate;
   }
+}
+
+/* In modalità Notte niente puntini bianchi/teal nella texture: restano
+   solo aloni rossi, per non disabituare l'occhio al buio. */
+:root[data-theme="night"] .chart-texture::before {
+  background-image: radial-gradient(
+      circle at 12% 8%,
+      rgba(168, 50, 50, 0.12),
+      transparent 45%
+    ),
+    radial-gradient(circle at 88% 0%, rgba(255, 85, 51, 0.08), transparent 40%),
+    repeating-radial-gradient(
+      circle at 50% 0%,
+      transparent 0,
+      transparent 120px,
+      rgba(242, 184, 168, 0.03) 121px,
+      rgba(242, 184, 168, 0.03) 122px
+    );
 }
 
 @keyframes drift {

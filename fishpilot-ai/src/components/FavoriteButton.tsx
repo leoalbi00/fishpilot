@@ -60,7 +60,7 @@ export default function FavoriteButton({
       disabled={!ready || busy}
       aria-pressed={isFavorite}
       aria-label={isFavorite ? "Rimuovi dai preferiti" : "Salva tra i preferiti"}
-      className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-body transition-colors disabled:opacity-50 ${
+      className={`min-h-[44px] inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-body transition-all active:scale-[0.97] disabled:opacity-50 ${
         isFavorite
           ? "border-signal bg-signal/10 text-signal"
           : "border-hull/50 text-foam/70 hover:border-signal/60 hover:text-signal"

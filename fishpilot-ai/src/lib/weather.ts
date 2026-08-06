@@ -9,6 +9,9 @@
 export interface RawMarinePoint {
   waveHeightM: number;
   wavePeriodS: number;
+  /** Direzione di provenienza dell'onda di fondo (gradi, 0=Nord): usata dal
+   * modulo Rada per lo Shelter Score. */
+  waveDirectionDeg: number;
   seaSurfaceTempC: number;
   /** Non sempre disponibile: il modello di corrente di Open-Meteo non copre tutte le zone. */
   currentSpeedKmh?: number;
@@ -18,6 +21,10 @@ export interface RawMarinePoint {
 export interface RawWeatherPoint {
   windSpeedKmh: number;
   windDirectionDeg: number;
+  /** Offset UTC (secondi) risolto da Open-Meteo per la data/zona richiesta
+   * (include DST): usato per mostrare orari locali corretti nelle Tabelle
+   * Solunari e nel Grafico Maree senza bisogno di un database di fusi orari. */
+  utcOffsetSeconds: number;
   cloudCoverPct: number;
   pressureHpa: number;
   airTempC: number;
@@ -59,7 +66,7 @@ export async function fetchMarineConditions(
 ): Promise<RawMarinePoint> {
   const url =
     `https://marine-api.open-meteo.com/v1/marine?latitude=${latitude}&longitude=${longitude}` +
-    `&hourly=wave_height,wave_period,sea_surface_temperature,ocean_current_velocity,ocean_current_direction` +
+    `&hourly=wave_height,wave_period,wave_direction,sea_surface_temperature,ocean_current_velocity,ocean_current_direction` +
     `&start_date=${dateISO}&end_date=${dateISO}&timezone=auto`;
 
   const res = await fetch(url);
@@ -85,6 +92,7 @@ export async function fetchMarineConditions(
   return {
     waveHeightM: data.hourly.wave_height?.[idx] ?? 0,
     wavePeriodS: data.hourly.wave_period?.[idx] ?? 0,
+    waveDirectionDeg: data.hourly.wave_direction?.[idx] ?? 0,
     seaSurfaceTempC: data.hourly.sea_surface_temperature?.[idx] ?? 18,
     currentSpeedKmh: typeof currentSpeedKmh === "number" ? currentSpeedKmh : undefined,
     currentDirectionDeg:
@@ -124,6 +132,7 @@ export async function fetchWeatherConditions(
   return {
     windSpeedKmh: data.hourly.wind_speed_10m?.[idx] ?? 0,
     windDirectionDeg: data.hourly.wind_direction_10m?.[idx] ?? 0,
+    utcOffsetSeconds: data.utc_offset_seconds ?? 0,
     cloudCoverPct: data.hourly.cloud_cover?.[idx] ?? 0,
     pressureHpa: data.hourly.surface_pressure?.[idx] ?? 1013,
     airTempC: data.hourly.temperature_2m?.[idx] ?? 20,

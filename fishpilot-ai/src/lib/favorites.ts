@@ -4,7 +4,7 @@
 // successivi. L'MVP non ha login: gli spot sono associati a un device_id
 // generato una volta sola e salvato in localStorage.
 import { createClient } from "@/lib/supabase/client";
-import type { FavoriteSpot, FishingTechnique } from "@/types/fishing";
+import type { FavoriteSpot, FishingTechnique, SeabedHoldingType } from "@/types/fishing";
 
 const DEVICE_ID_KEY = "fishpilot_device_id";
 const FAVORITES_KEY = "fishpilot_favorites";
@@ -62,7 +62,7 @@ export async function listFavorites(): Promise<FavoriteSpot[]> {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("favorite_spots")
-      .select("id, name, latitude, longitude, technique, created_at")
+      .select("id, name, latitude, longitude, technique, seabed_type, created_at")
       .eq("device_id", deviceId)
       .order("created_at", { ascending: false });
 
@@ -74,6 +74,7 @@ export async function listFavorites(): Promise<FavoriteSpot[]> {
       latitude: row.latitude as number,
       longitude: row.longitude as number,
       technique: row.technique as FishingTechnique,
+      seabedType: (row.seabed_type as SeabedHoldingType) ?? "sconosciuto",
       createdAt: row.created_at as string,
     }));
 
@@ -90,8 +91,10 @@ export async function addFavorite(spot: {
   latitude: number;
   longitude: number;
   technique: FishingTechnique;
+  seabedType?: SeabedHoldingType;
 }): Promise<FavoriteSpot> {
   const deviceId = getDeviceId();
+  const seabedType = spot.seabedType ?? "sconosciuto";
 
   try {
     const supabase = createClient();
@@ -103,6 +106,7 @@ export async function addFavorite(spot: {
         latitude: spot.latitude,
         longitude: spot.longitude,
         technique: spot.technique,
+        seabed_type: seabedType,
       })
       .select()
       .single();
@@ -115,6 +119,7 @@ export async function addFavorite(spot: {
       latitude: data.latitude as number,
       longitude: data.longitude as number,
       technique: data.technique as FishingTechnique,
+      seabedType: (data.seabed_type as SeabedHoldingType) ?? "sconosciuto",
       createdAt: data.created_at as string,
     };
 
@@ -130,10 +135,28 @@ export async function addFavorite(spot: {
       latitude: spot.latitude,
       longitude: spot.longitude,
       technique: spot.technique,
+      seabedType,
       createdAt: new Date().toISOString(),
     };
     writeLocalFavorites([favorite, ...readLocalFavorites()]);
     return favorite;
+  }
+}
+
+/** Aggiorna il tipo di fondale registrato per uno spot preferito già salvato. */
+export async function updateFavoriteSeabed(
+  id: string,
+  seabedType: SeabedHoldingType
+): Promise<void> {
+  try {
+    const supabase = createClient();
+    await supabase.from("favorite_spots").update({ seabed_type: seabedType }).eq("id", id);
+  } catch {
+    // Supabase non raggiungibile: l'aggiornamento della cache locale sotto è comunque sufficiente.
+  } finally {
+    writeLocalFavorites(
+      readLocalFavorites().map((f) => (f.id === id ? { ...f, seabedType } : f))
+    );
   }
 }
 

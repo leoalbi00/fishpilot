@@ -14,6 +14,62 @@ export type FishingTechnique =
  * partenza -> destinazione (modalità avanzata, facoltativa). */
 export type SearchMode = "spot" | "tratta";
 
+/** Modalità applicativa: Rada (ancoraggio/sicurezza), Pesca, o vista unificata. */
+export type AppMode = "rada" | "pesca" | "combo";
+
+/** Tema visivo: Giorno (default), Sole Alto (altissimo contrasto), Notte
+ * (toni rossi per preservare la visione notturna). */
+export type ThemeMode = "day" | "sunhigh" | "night";
+
+/** Tipo di fondale registrato dall'utente per un preferito (per la tenuta ancora). */
+export type SeabedHoldingType =
+  | "sabbia"
+  | "posidonia"
+  | "roccia"
+  | "fango"
+  | "misto"
+  | "sconosciuto";
+
+/** Periodo solunare: "major" (culminazione/anti-culminazione lunare, ~2h,
+ * picco di attività) o "minor" (sorgere/tramonto lunare, ~1h). */
+export interface SolunarPeriod {
+  kind: "major" | "minor";
+  startISO: string;
+  endISO: string;
+  label: string;
+}
+
+export interface SolunarResult {
+  moonPhaseLabel: string;
+  moonIllumination: number; // 0-1
+  periods: SolunarPeriod[];
+}
+
+/** Punto del grafico marea (approssimazione astronomica, vedi lib/tides.ts). */
+export interface TidePoint {
+  timeISO: string;
+  heightM: number;
+}
+
+export interface TidePeak {
+  timeISO: string;
+  heightM: number;
+  type: "alta" | "bassa";
+}
+
+export interface TideResult {
+  points: TidePoint[];
+  peaks: TidePeak[];
+}
+
+/** Valutazione della protezione della baia per l'ancoraggio (euristica). */
+export interface ShelterAssessment {
+  scorePct: number; // 0-100
+  label: string;
+  warnings: string[];
+  exposureKnown: boolean;
+}
+
 /** Condizioni meteo generali (aria, nuvolosità, pressione, onde). */
 export interface WeatherInput {
   waveHeightM: number;
@@ -75,6 +131,9 @@ export interface ConditionsSummary {
   windState: string;
   summary: string;
   warnings: string[];
+  /** Offset UTC (secondi) dello spot, per convertire in ora locale gli
+   * orari calcolati da lib/astro.ts, lib/solunar.ts e lib/tides.ts. */
+  utcOffsetSeconds?: number;
 }
 
 /** Output restituito da runFishingAlgorithm(). */
@@ -118,6 +177,7 @@ export interface ZonePoint {
   pressureHpa: number;
   waveHeightM: number;
   wavePeriodS: number;
+  waveDirectionDeg: number;
   windSpeedKmh: number;
   windDirectionDeg: number;
   /** Corrente marina: non sempre disponibile per ogni zona (dato Open-Meteo). */
@@ -132,5 +192,7 @@ export interface FavoriteSpot {
   latitude: number;
   longitude: number;
   technique: FishingTechnique;
+  /** Tipo di fondale registrato manualmente dall'utente (per la tenuta ancora). */
+  seabedType: SeabedHoldingType;
   createdAt: string;
 }
