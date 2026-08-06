@@ -3,15 +3,17 @@
 import { useAppPreferences } from "@/components/AppPreferencesProvider";
 import type { ThemeMode } from "@/types/fishing";
 
-const THEME_ORDER: ThemeMode[] = ["day", "sunhigh", "night"];
+const THEME_ORDER: ThemeMode[] = ["day", "sunhigh", "night", "light"];
 
 const THEME_META: Record<ThemeMode, { icon: string; label: string }> = {
   day: { icon: "☀️", label: "Giorno" },
   sunhigh: { icon: "🔆", label: "Sole Alto" },
   night: { icon: "🌙", label: "Notte" },
+  light: { icon: "⬜", label: "Chiaro" },
 };
 
-/** Cicla tra i temi visivi: Giorno -> Sole Alto (alto contrasto) -> Notte (visione notturna). */
+/** Cicla tra i temi visivi: Giorno -> Sole Alto (alto contrasto) -> Notte
+ * (visione notturna) -> Chiaro (sfondo bianco). */
 export default function ThemeToggle() {
   const { theme, setTheme } = useAppPreferences();
   const meta = THEME_META[theme];

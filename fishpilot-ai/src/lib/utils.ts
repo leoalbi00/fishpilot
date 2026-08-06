@@ -119,3 +119,31 @@ export function haversineDistanceM(
 
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
+
+/** Punto a `distanceM` metri da `origin`, lungo la rotta `bearingDeg`
+ * (0=Nord, 90=Est), formula great-circle diretta. */
+export function destinationPoint(
+  origin: { latitude: number; longitude: number },
+  bearingDeg: number,
+  distanceM: number
+): { latitude: number; longitude: number } {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const toDeg = (r: number) => (r * 180) / Math.PI;
+
+  const δ = distanceM / EARTH_RADIUS_M;
+  const θ = toRad(bearingDeg);
+  const φ1 = toRad(origin.latitude);
+  const λ1 = toRad(origin.longitude);
+
+  const φ2 = Math.asin(
+    Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ)
+  );
+  const λ2 =
+    λ1 +
+    Math.atan2(
+      Math.sin(θ) * Math.sin(δ) * Math.cos(φ1),
+      Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2)
+    );
+
+  return { latitude: toDeg(φ2), longitude: toDeg(λ2) };
+}

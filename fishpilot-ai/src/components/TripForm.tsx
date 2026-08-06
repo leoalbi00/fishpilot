@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppPreferences } from "@/components/AppPreferencesProvider";
 import LocationAutocomplete from "@/components/LocationAutocomplete";
+import MapPicker from "@/components/MapPicker";
 import { saveLocalReport } from "@/lib/localReport";
+import { readRecentSearches, saveRecentSearch, type RecentSearch } from "@/lib/searchHistory";
+import { consumeReuseSpot } from "@/lib/crossEcosystem";
+import { suggestTechnique } from "@/lib/techniqueSuggestion";
 import type { FishingTechnique, LocationSuggestion } from "@/types/fishing";
 
 const TECHNIQUES: { value: FishingTechnique; label: string }[] = [
@@ -31,7 +35,12 @@ export default function TripForm() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
+  const [showMap, setShowMap] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
+  const [areaMode, setAreaMode] = useState<"punto" | "area">("punto");
+  const [radiusM, setRadiusM] = useState(1000);
 
+  const [techniqueMode, setTechniqueMode] = useState<"manuale" | "suggerita">("manuale");
   const [technique, setTechnique] = useState<FishingTechnique>("bolentino");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("06:00");
@@ -41,7 +50,26 @@ export default function TripForm() {
   // Precompila la data odierna lato client (evita mismatch di hydration).
   useEffect(() => {
     setDate(new Date().toISOString().slice(0, 10));
+    setRecentSearches(readRecentSearches());
+
+    // Spot riusato da un altro ecosistema (pulsante "Usa questo spot per...").
+    const reused = consumeReuseSpot();
+    if (reused) {
+      setCoords({ lat: reused.latitude, lng: reused.longitude });
+      setLocation(reused.label);
+    }
   }, []);
+
+  // Modalità "Suggerita": la tecnica segue automaticamente data/ora finché
+  // l'utente non passa a "Manuale".
+  useEffect(() => {
+    if (techniqueMode !== "suggerita" || !date || !time) return;
+    const hour = Number(time.split(":")[0]);
+    setTechnique(suggestTechnique(date, hour).technique);
+  }, [techniqueMode, date, time]);
+
+  const techniqueSuggestion =
+    date && time ? suggestTechnique(date, Number(time.split(":")[0])) : null;
 
   function handleGeolocate() {
     setLocateError(null);
@@ -73,11 +101,24 @@ export default function TripForm() {
   function handleSuggestionSelect(s: LocationSuggestion) {
     setLocation(s.label);
     setCoords({ lat: s.latitude, lng: s.longitude });
+    saveRecentSearch({ label: s.label, latitude: s.latitude, longitude: s.longitude });
+    setRecentSearches(readRecentSearches());
+  }
+
+  function handleMapPick(p: { lat: number; lng: number }) {
+    setCoords(p);
+    setLocation("");
+  }
+
+  function handleRecentSelect(s: RecentSearch) {
+    setLocation(s.label);
+    setCoords({ lat: s.latitude, lng: s.longitude });
   }
 
   function clearCoords() {
     setCoords(null);
     setLocation("");
+    setShowMap(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -93,9 +134,10 @@ export default function TripForm() {
       return;
     }
 
+    const areaRadiusM = mode === "pesca" && areaMode === "area" ? radiusM : undefined;
     const body = coords
-      ? { mode: "spot", coords, technique, date, time }
-      : { mode: "spot", location, technique, date, time };
+      ? { mode: "spot", coords, technique, date, time, areaRadiusM }
+      : { mode: "spot", location, technique, date, time, areaRadiusM };
 
     setLoading(true);
     try {
@@ -163,14 +205,93 @@ export default function TripForm() {
         </label>
 
         {!coords && (
-          <button
-            type="button"
-            onClick={handleGeolocate}
-            disabled={locating}
-            className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-lg border border-tide/50 text-tide px-4 py-2.5 text-sm font-body hover:bg-tide/10 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            📍 {locating ? "Rilevamento in corso…" : "Usa la mia posizione attuale"}
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleGeolocate}
+              disabled={locating}
+              className="flex-1 min-h-[48px] flex items-center justify-center gap-2 rounded-lg border border-tide/50 text-tide px-4 py-2.5 text-sm font-body hover:bg-tide/10 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              📍 {locating ? "Rilevamento in corso…" : "Posizione attuale"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              aria-pressed={showMap}
+              className={`shrink-0 min-h-[48px] px-4 rounded-lg border text-sm font-body transition-all active:scale-[0.98] ${
+                showMap
+                  ? "bg-tide/20 border-tide text-tide"
+                  : "border-tide/50 text-tide hover:bg-tide/10"
+              }`}
+            >
+              🗺️ Mappa
+            </button>
+          </div>
+        )}
+
+        {mode === "pesca" && !coords && showMap && (
+          <div className="flex items-center gap-1 rounded-full border border-hull/50 p-0.5 w-fit">
+            <button
+              type="button"
+              onClick={() => setAreaMode("punto")}
+              aria-pressed={areaMode === "punto"}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-body transition-colors ${
+                areaMode === "punto" ? "bg-signal text-abyss font-medium" : "text-foam/50 hover:text-foam"
+              }`}
+            >
+              📍 Punto singolo
+            </button>
+            <button
+              type="button"
+              onClick={() => setAreaMode("area")}
+              aria-pressed={areaMode === "area"}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-body transition-colors ${
+                areaMode === "area" ? "bg-signal text-abyss font-medium" : "text-foam/50 hover:text-foam"
+              }`}
+            >
+              ⭕ Area (raggio)
+            </button>
+          </div>
+        )}
+
+        {mode === "pesca" && !coords && showMap && areaMode === "area" && (
+          <label className="block">
+            <span className="flex items-center justify-between text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
+              <span>Raggio area</span>
+              <span className="text-tide normal-case tracking-normal">{(radiusM / 1000).toFixed(1)} km</span>
+            </span>
+            <input
+              type="range"
+              min={250}
+              max={5000}
+              step={250}
+              value={radiusM}
+              onChange={(e) => setRadiusM(Number(e.target.value))}
+              className="w-full accent-tide"
+            />
+          </label>
+        )}
+
+        {!coords && showMap && (
+          <MapPicker
+            onPick={handleMapPick}
+            radiusM={mode === "pesca" && areaMode === "area" ? radiusM : undefined}
+          />
+        )}
+
+        {!coords && !showMap && recentSearches.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {recentSearches.map((s) => (
+              <button
+                key={`${s.label}-${s.latitude}-${s.longitude}`}
+                type="button"
+                onClick={() => handleRecentSelect(s)}
+                className="min-h-[36px] rounded-full border border-hull/50 text-foam/60 px-3 text-xs font-body hover:border-tide/60 hover:text-foam transition-colors"
+              >
+                🕓 {s.label}
+              </button>
+            ))}
+          </div>
         )}
 
         {locateError && (
@@ -181,16 +302,55 @@ export default function TripForm() {
       </div>
 
       {mode === "pesca" && (
-        <div>
-          <span className="block text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
-            Tecnica di pesca
-          </span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="block text-xs font-mono uppercase tracking-widest text-foam/50">
+              Tecnica di pesca
+            </span>
+            <div className="flex items-center gap-1 rounded-full border border-hull/50 p-0.5">
+              <button
+                type="button"
+                onClick={() => setTechniqueMode("suggerita")}
+                aria-pressed={techniqueMode === "suggerita"}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-body transition-colors ${
+                  techniqueMode === "suggerita"
+                    ? "bg-signal text-abyss font-medium"
+                    : "text-foam/50 hover:text-foam"
+                }`}
+              >
+                ✨ Suggerita
+              </button>
+              <button
+                type="button"
+                onClick={() => setTechniqueMode("manuale")}
+                aria-pressed={techniqueMode === "manuale"}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-body transition-colors ${
+                  techniqueMode === "manuale"
+                    ? "bg-signal text-abyss font-medium"
+                    : "text-foam/50 hover:text-foam"
+                }`}
+              >
+                Manuale
+              </button>
+            </div>
+          </div>
+
+          {techniqueMode === "suggerita" && techniqueSuggestion && (
+            <p className="text-xs text-tide/80 font-body -mt-1">
+              {TECHNIQUES.find((t) => t.value === techniqueSuggestion.technique)?.label}:{" "}
+              {techniqueSuggestion.reason}
+            </p>
+          )}
+
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {TECHNIQUES.map((t) => (
               <button
                 key={t.value}
                 type="button"
-                onClick={() => setTechnique(t.value)}
+                onClick={() => {
+                  setTechnique(t.value);
+                  setTechniqueMode("manuale");
+                }}
                 aria-pressed={technique === t.value}
                 className={`min-h-[44px] rounded-lg px-2 py-2.5 text-sm font-body border transition-colors active:scale-[0.97] ${
                   technique === t.value

@@ -1,6 +1,13 @@
+"use client";
+
+import { useRouter } from "next/navigation";
 import RouteMap from "@/components/RouteMap";
+import PassageCalendarCard from "@/components/PassageCalendarCard";
+import { useAppPreferences } from "@/components/AppPreferencesProvider";
 import { degToCompass, formatLocalTime } from "@/lib/utils";
-import type { RoutePlanResult } from "@/types/fishing";
+import { downloadGpx } from "@/lib/gpxExport";
+import { saveReuseSpot } from "@/lib/crossEcosystem";
+import type { AppMode, RoutePlanResult } from "@/types/fishing";
 
 const SECTOR_LABELS: Record<string, string> = {
   prua: "Di prua",
@@ -20,10 +27,23 @@ function formatDuration(hours: number): string {
  * (/traversata/[id], dati da Supabase) sia dal fallback locale
  * (/traversata/local, quando il salvataggio su Supabase non è riuscito). */
 export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
+  const router = useRouter();
+  const { setMode } = useAppPreferences();
   const utcOffsetSeconds = plan.utcOffsetSeconds;
   const firstWaypoint = plan.waypoints[0];
   const lastWaypoint = plan.waypoints[plan.waypoints.length - 1];
   const etaFinalISO = plan.legs[plan.legs.length - 1]?.etaISO ?? plan.departureISO;
+  const anySeaRouted = plan.legs.some((leg) => leg.isSeaRouted);
+
+  function useArrivalFor(target: AppMode) {
+    saveReuseSpot({
+      label: lastWaypoint.name,
+      latitude: lastWaypoint.latitude,
+      longitude: lastWaypoint.longitude,
+    });
+    setMode(target);
+    router.push("/");
+  }
 
   return (
     <div className="space-y-8">
@@ -44,6 +64,23 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
             ricaricando la pagina. Ricalcola quando serve.
           </p>
         )}
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => useArrivalFor("rada")}
+            className="text-xs font-body rounded-full border border-hull/50 text-foam/60 px-3 py-1.5 hover:border-tide/60 hover:text-foam transition-colors"
+          >
+            ⚓ Usa l&apos;arrivo per Rada
+          </button>
+          <button
+            type="button"
+            onClick={() => useArrivalFor("pesca")}
+            className="text-xs font-body rounded-full border border-hull/50 text-foam/60 px-3 py-1.5 hover:border-tide/60 hover:text-foam transition-colors"
+          >
+            🎣 Usa l&apos;arrivo per Pesca
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -85,7 +122,24 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
         </div>
       </div>
 
-      <RouteMap waypoints={plan.waypoints} refugePorts={plan.refugePorts} />
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => downloadGpx(plan)}
+          className="min-h-[40px] rounded-lg border border-tide/50 text-tide px-4 text-sm font-body hover:bg-tide/10 active:scale-[0.98] transition-all"
+        >
+          ⬇️ Esporta GPX
+        </button>
+      </div>
+
+      <RouteMap waypoints={plan.waypoints} refugePorts={plan.refugePorts} legs={plan.legs} />
+
+      {anySeaRouted && (
+        <p className="text-[11px] text-foam/35 font-body -mt-4">
+          Tracciato via mare stimato (rete marittima precalcolata, uso indicativo): non è un
+          percorso di navigazione ufficiale, verifica sempre su carta nautica aggiornata.
+        </p>
+      )}
 
       <div className="space-y-3">
         <h2 className="font-display text-foam text-lg">Meteo lungo la rotta</h2>
@@ -154,6 +208,8 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
           </div>
         ))}
       </div>
+
+      <PassageCalendarCard calendar={plan.passageCalendar} />
 
       <div className="space-y-3">
         <h2 className="font-display text-foam text-lg">Porti di Rifugio</h2>

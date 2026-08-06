@@ -15,7 +15,7 @@ export type AppMode = "traversata" | "rada" | "pesca";
 
 /** Tema visivo: Giorno (default), Sole Alto (altissimo contrasto), Notte
  * (toni rossi per preservare la visione notturna). */
-export type ThemeMode = "day" | "sunhigh" | "night";
+export type ThemeMode = "day" | "sunhigh" | "night" | "light";
 
 /** Tipo di fondale registrato dall'utente per un preferito (per la tenuta ancora). */
 export type SeabedHoldingType =
@@ -233,6 +233,12 @@ export interface RouteLeg {
   currentDirectionDeg?: number;
   seaSurfaceTempC: number;
   warnings: string[];
+  /** Percorso via mare [lng,lat] stimato (searoute-js), se disponibile: vedi
+   * lib/searoute.ts. Assente = fallback alla linea diretta from→to. */
+  pathCoordinates?: [number, number][];
+  /** true se `pathCoordinates` è una rotta marittima stimata (non la linea
+   * diretta): usato per mostrare il disclaimer "non per navigazione". */
+  isSeaRouted?: boolean;
 }
 
 export interface RoutePlan {
@@ -258,6 +264,30 @@ export interface RefugePort {
   warning?: string;
 }
 
+/** Valutazione di idoneità di una finestra oraria/giornata per la traversata. */
+export type PassageRating = "buona" | "discreta" | "sconsigliata";
+
+export interface PassageWindow {
+  label: string;
+  startHour: number;
+  endHour: number;
+  avgWindKn: number;
+  avgWaveM: number;
+  rating: PassageRating;
+}
+
+export interface PassageDay {
+  dateISO: string;
+  bestWindow: PassageWindow;
+  rating: PassageRating;
+}
+
+/** Calendario dei prossimi 7 giorni (Calendario Traversata), calcolato sul
+ * punto di partenza della rotta: vedi lib/passageCalendar.ts. */
+export interface PassageCalendarResult {
+  days: PassageDay[];
+}
+
 /** Piano di rotta completo, così come mostrato a schermo: usato sia dalla
  * pagina persistita (/traversata/[id], letta da Supabase) sia dal fallback
  * locale (/traversata/local, quando il salvataggio su Supabase non è
@@ -266,6 +296,9 @@ export interface RoutePlanResult extends RoutePlan {
   refugePorts: RefugePort[];
   /** false se la rotta non è stata salvata su Supabase (nessun link condivisibile). */
   persisted: boolean;
+  /** Assente se il calcolo non è riuscito (rete/dati non disponibili): il
+   * chiamante deve gestire il caso undefined, mai bloccare la pagina. */
+  passageCalendar?: PassageCalendarResult;
 }
 
 // ============================================================
@@ -285,6 +318,10 @@ export interface NightForecastResult {
   trend: "migliora" | "peggiora" | "stabile";
   maxWindSpeedKmh: number;
   maxWaveHeightM: number;
+  /** true se nella finestra di 24h è previsto vento/mare da allerta (soglie
+   * di severità già usate per il colore dei punti in NightForecastCard). */
+  stormWarning: boolean;
+  stormReasons: string[];
 }
 
 // ============================================================

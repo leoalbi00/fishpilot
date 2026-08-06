@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { geocodeLocation, reverseGeocode } from "@/lib/geocode";
 import { planRoute } from "@/lib/routePlanning";
 import { findRefugePorts, attachRouteWarnings } from "@/lib/refugePorts";
+import { computePassageCalendar } from "@/lib/passageCalendar";
 import { createClient } from "@/lib/supabase/server";
-import type { GeocodedPlace, RoutePlanResult } from "@/types/fishing";
+import type { GeocodedPlace, PassageCalendarResult, RoutePlanResult } from "@/types/fishing";
 
 interface WaypointInput {
   location?: string;
@@ -84,6 +85,19 @@ export async function POST(req: NextRequest) {
     const refugePortsRaw = await findRefugePorts(plan.waypoints);
     const refugePorts = attachRouteWarnings(refugePortsRaw, plan.legs);
 
+    // Calendario Traversata: mai bloccante, ricade su undefined se la rete
+    // o i dati non sono disponibili (RouteResultsView gestisce l'assenza).
+    let passageCalendar: PassageCalendarResult | undefined;
+    try {
+      passageCalendar = await computePassageCalendar(
+        plan.waypoints[0].latitude,
+        plan.waypoints[0].longitude,
+        date
+      );
+    } catch (err) {
+      console.error("Calendario Traversata non disponibile:", err);
+    }
+
     // Il salvataggio su Supabase non deve mai bloccare la visualizzazione
     // della rotta: se fallisce (tabella non ancora creata, rete assente,
     // credenziali mancanti...) si continua con routeId null e il client
@@ -121,6 +135,7 @@ export async function POST(req: NextRequest) {
       ...plan,
       refugePorts,
       persisted: routeId !== null,
+      passageCalendar,
     };
 
     return NextResponse.json({ routeId, plan: result });

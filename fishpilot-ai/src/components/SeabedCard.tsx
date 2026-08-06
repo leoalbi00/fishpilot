@@ -19,21 +19,45 @@ interface SeabedCardProps {
   longitude: number;
 }
 
-/** Tipo di fondale e tenuta ancora per lo spot corrente (registrato sul preferito, se salvato). */
+/** Tipo di fondale e tenuta ancora per lo spot corrente. Se non è già
+ * registrato su un preferito, tenta una stima automatica (beta, EMODnet
+ * Geology) come punto di partenza — sempre correggibile a mano. */
 export default function SeabedCard({ latitude, longitude }: SeabedCardProps) {
   const [favoriteId, setFavoriteId] = useState<string | null>(null);
   const [seabedType, setSeabedType] = useState<SeabedHoldingType>("sconosciuto");
+  const [autoEstimated, setAutoEstimated] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    listFavorites().then((favorites) => {
+
+    listFavorites().then(async (favorites) => {
       if (cancelled) return;
       const match = findFavoriteMatch(favorites, latitude, longitude);
-      setFavoriteId(match?.id ?? null);
-      setSeabedType(match?.seabedType ?? "sconosciuto");
+
+      if (match) {
+        setFavoriteId(match.id);
+        setSeabedType(match.seabedType);
+        setReady(true);
+        return;
+      }
+
       setReady(true);
+
+      // Nessun preferito salvato per questo spot: prova una stima
+      // automatica (beta) come punto di partenza, mai bloccante.
+      try {
+        const res = await fetch(`/api/seabed?lat=${latitude}&lng=${longitude}`);
+        const data = await res.json();
+        if (!cancelled && data.seabedType) {
+          setSeabedType(data.seabedType as SeabedHoldingType);
+          setAutoEstimated(true);
+        }
+      } catch {
+        // Nessuna stima disponibile: resta "sconosciuto".
+      }
     });
+
     return () => {
       cancelled = true;
     };
@@ -41,6 +65,7 @@ export default function SeabedCard({ latitude, longitude }: SeabedCardProps) {
 
   async function handleSelect(type: SeabedHoldingType) {
     setSeabedType(type);
+    setAutoEstimated(false);
     if (favoriteId) {
       await updateFavoriteSeabed(favoriteId, type);
     }
@@ -50,7 +75,14 @@ export default function SeabedCard({ latitude, longitude }: SeabedCardProps) {
 
   return (
     <div className="rounded-xl border border-hull/40 bg-depth/60 p-5 space-y-4">
-      <h3 className="font-display text-foam text-lg">Tipo di Fondale &amp; Tenuta</h3>
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-display text-foam text-lg">Tipo di Fondale &amp; Tenuta</h3>
+        {autoEstimated && (
+          <span className="text-[10px] font-mono uppercase tracking-widest text-tide bg-tide/10 px-2 py-1 rounded-full">
+            Stima auto (beta)
+          </span>
+        )}
+      </div>
 
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
         {OPTIONS.map((o) => (
@@ -88,6 +120,13 @@ export default function SeabedCard({ latitude, longitude }: SeabedCardProps) {
         </p>
         <p className="text-sm text-foam/70 mt-1.5">{advice.advice}</p>
       </div>
+
+      {autoEstimated && (
+        <p className="text-[11px] text-tide/70 font-body">
+          Stima automatica da dato pubblico EMODnet Geology, non un rilievo diretto: verifica
+          sempre con ecoscandaglio prima di ancorare e correggi qui se necessario.
+        </p>
+      )}
 
       {!favoriteId && (
         <p className="text-[11px] text-foam/35 font-body">

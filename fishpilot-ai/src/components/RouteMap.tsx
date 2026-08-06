@@ -3,14 +3,43 @@
 import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import type { RefugePort, RouteWaypoint } from "@/types/fishing";
+import type { RefugePort, RouteLeg, RouteWaypoint } from "@/types/fishing";
 
 interface RouteMapProps {
   waypoints: RouteWaypoint[];
   refugePorts?: RefugePort[];
+  /** Se presenti, il percorso disegnato segue leg.pathCoordinates (rotta via
+   * mare stimata) invece della linea diretta tra i waypoint, ove disponibile. */
+  legs?: RouteLeg[];
 }
 
-export default function RouteMap({ waypoints, refugePorts = [] }: RouteMapProps) {
+/** Costruisce la linea da disegnare: usa il percorso via mare stimato per
+ * ogni leg che lo ha (searoute-js), altrimenti la linea diretta waypoint→waypoint. */
+function buildRouteCoordinates(
+  waypoints: RouteWaypoint[],
+  legs: RouteLeg[]
+): [number, number][] {
+  if (legs.length === 0) {
+    return waypoints.map((w) => [w.longitude, w.latitude]);
+  }
+  const coords: [number, number][] = [];
+  legs.forEach((leg, i) => {
+    const from = waypoints[i];
+    const to = waypoints[i + 1];
+    const legCoords: [number, number][] =
+      leg.pathCoordinates && leg.pathCoordinates.length >= 2
+        ? leg.pathCoordinates
+        : [
+            [from.longitude, from.latitude],
+            [to.longitude, to.latitude],
+          ];
+    if (coords.length > 0) coords.pop(); // evita punto duplicato in giunzione
+    coords.push(...legCoords);
+  });
+  return coords;
+}
+
+export default function RouteMap({ waypoints, refugePorts = [], legs = [] }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
 
@@ -38,7 +67,7 @@ export default function RouteMap({ waypoints, refugePorts = [] }: RouteMapProps)
           properties: {},
           geometry: {
             type: "LineString",
-            coordinates: waypoints.map((w) => [w.longitude, w.latitude]),
+            coordinates: buildRouteCoordinates(waypoints, legs),
           },
         },
       });
@@ -109,7 +138,7 @@ export default function RouteMap({ waypoints, refugePorts = [] }: RouteMapProps)
       map.remove();
       mapRef.current = null;
     };
-  }, [waypoints, refugePorts]);
+  }, [waypoints, refugePorts, legs]);
 
   return (
     <div

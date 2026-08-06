@@ -2,7 +2,14 @@ import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import RouteResultsView from "@/components/RouteResultsView";
 import { createClient } from "@/lib/supabase/server";
-import type { RefugePort, RouteLeg, RoutePlanResult, RouteWaypoint } from "@/types/fishing";
+import { computePassageCalendar } from "@/lib/passageCalendar";
+import type {
+  PassageCalendarResult,
+  RefugePort,
+  RouteLeg,
+  RoutePlanResult,
+  RouteWaypoint,
+} from "@/types/fishing";
 
 interface RoutePlanRow {
   id: string;
@@ -33,6 +40,19 @@ export default async function TraversataPage({
     notFound();
   }
 
+  // Calendario Traversata: ricalcolato ad ogni visita (non persistito, come
+  // la Previsione H24 di Rada), mai bloccante per il rendering della pagina.
+  let passageCalendar: PassageCalendarResult | undefined;
+  try {
+    passageCalendar = await computePassageCalendar(
+      route.waypoints[0].latitude,
+      route.waypoints[0].longitude,
+      route.departure.slice(0, 10)
+    );
+  } catch (err) {
+    console.error("Calendario Traversata non disponibile:", err);
+  }
+
   const plan: RoutePlanResult = {
     waypoints: route.waypoints,
     legs: route.legs,
@@ -46,6 +66,7 @@ export default async function TraversataPage({
     etaFinalISO: route.legs[route.legs.length - 1]?.etaISO ?? route.departure,
     utcOffsetSeconds: route.utc_offset_seconds ?? 0,
     persisted: true,
+    passageCalendar,
   };
 
   return (

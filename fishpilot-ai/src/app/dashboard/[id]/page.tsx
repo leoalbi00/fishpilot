@@ -60,7 +60,9 @@ export default async function DashboardPage({
   const trip = row.trips;
   // In modalità Spot c'è un solo punto (indice 0), in modalità Tratta il
   // punto medio (indice 1) rappresenta la zona di pesca principale.
-  const primaryZone = row.zones?.[Math.floor((row.zones?.length ?? 1) / 2)];
+  // Il punto primario è il centro/spot singolo (indice 0), tranne in
+  // modalità Tratta (3 zone: partenza/metà/arrivo) dove è il punto medio.
+  const primaryZone = row.zones?.[(row.zones?.length ?? 1) === 3 ? 1 : 0];
   const utcOffsetSeconds = row.conditions.utcOffsetSeconds ?? 0;
 
   // Tabelle solunari e marea: pura astronomia (nessuna chiamata di rete),
@@ -79,7 +81,14 @@ export default async function DashboardPage({
       trip.start_lng
     );
   } catch {
-    nightForecast = { points: [], trend: "stabile", maxWindSpeedKmh: 0, maxWaveHeightM: 0 };
+    nightForecast = {
+      points: [],
+      trend: "stabile",
+      maxWindSpeedKmh: 0,
+      maxWaveHeightM: 0,
+      stormWarning: false,
+      stormReasons: [],
+    };
   }
 
   const report: SpotReportResult = {

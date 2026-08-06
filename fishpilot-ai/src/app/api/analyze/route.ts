@@ -26,12 +26,15 @@ const VALID_TECHNIQUES: FishingTechnique[] = [
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { location, coords, technique, date, time } = body as {
+    const { location, coords, technique, date, time, areaRadiusM } = body as {
       location?: string;
       coords?: { lat?: number; lng?: number };
       technique?: string;
       date?: string;
       time?: string;
+      /** Modalità Pesca "Area (raggio)": presente solo se l'utente ha scelto
+       * un'area invece di un punto singolo. */
+      areaRadiusM?: number;
     };
 
     if (!technique || !date || !time) {
@@ -84,6 +87,8 @@ export async function POST(req: NextRequest) {
       dateISO: date,
       hour,
       minute,
+      areaRadiusM:
+        typeof areaRadiusM === "number" && areaRadiusM > 0 ? areaRadiusM : undefined,
     });
 
     const tripDateISO = `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
@@ -153,7 +158,14 @@ export async function POST(req: NextRequest) {
     try {
       nightForecast = await computeNightForecast(date, analysis.start.latitude, analysis.start.longitude);
     } catch {
-      nightForecast = { points: [], trend: "stabile", maxWindSpeedKmh: 0, maxWaveHeightM: 0 };
+      nightForecast = {
+        points: [],
+        trend: "stabile",
+        maxWindSpeedKmh: 0,
+        maxWaveHeightM: 0,
+        stormWarning: false,
+        stormReasons: [],
+      };
     }
 
     const report: SpotReportResult = {
@@ -162,7 +174,9 @@ export async function POST(req: NextRequest) {
       species: analysis.primary.species,
       recommendations: analysis.primary.recommendations,
       conditions: analysis.primary.conditions,
-      primaryZone: analysis.zones[Math.floor(analysis.zones.length / 2)],
+      // Il punto primario è il centro/spot singolo (indice 0), tranne in
+      // modalità Tratta (3 zone: partenza/metà/arrivo) dove è il punto medio.
+      primaryZone: analysis.zones[analysis.zones.length === 3 ? 1 : 0],
       trip: {
         startLocation: analysis.start.displayName,
         technique: technique as FishingTechnique,

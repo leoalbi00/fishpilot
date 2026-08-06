@@ -4,32 +4,85 @@ import { useEffect, useRef, useState } from "react";
 import { haversineDistanceM } from "@/lib/utils";
 
 const DEFAULT_RADIUS_M = 30;
-const BEEP_INTERVAL_MS = 900;
+const SIREN_TONE_MS = 280;
+const SIREN_HIGH_HZ = 880;
+const SIREN_LOW_HZ = 587;
+const ALARM_GAIN = 0.55;
 
-function beep() {
-  try {
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "square";
-    osc.frequency.value = 880;
-    gain.gain.value = 0.18;
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    setTimeout(() => {
-      osc.stop();
-      ctx.close();
-    }, 220);
-  } catch {
-    // Web Audio non disponibile: resta comunque il banner visivo.
+type AudioCtxCtor = typeof AudioContext;
+
+/** Gestisce un unico AudioContext/oscillatore persistente, creato al momento
+ * dell'armamento (gesto utente esplicito, richiesto dalle policy autoplay
+ * dei browser) e tenuto silenzioso finché non serve: evita di dover
+ * ricreare il contesto audio nel momento critico in cui l'allarme scatta
+ * (magari minuti/ore dopo, fuori da un gesto utente). */
+class AlarmSiren {
+  private ctx: AudioContext | null = null;
+  private osc: OscillatorNode | null = null;
+  private gain: GainNode | null = null;
+  private toneInterval: ReturnType<typeof setInterval> | null = null;
+
+  start() {
+    if (this.ctx) return;
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: AudioCtxCtor }).webkitAudioContext;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "square";
+      osc.frequency.value = SIREN_HIGH_HZ;
+      gain.gain.value = 0; // silenzioso finché l'allarme non scatta davvero
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+
+      this.ctx = ctx;
+      this.osc = osc;
+      this.gain = gain;
+    } catch {
+      // Web Audio non disponibile: resta comunque il banner visivo lampeggiante.
+    }
+  }
+
+  sound() {
+    if (!this.ctx || !this.osc || !this.gain || this.toneInterval) return;
+    this.ctx.resume().catch(() => {});
+    this.gain.gain.setValueAtTime(ALARM_GAIN, this.ctx.currentTime);
+
+    let high = true;
+    this.toneInterval = setInterval(() => {
+      if (!this.ctx || !this.osc) return;
+      high = !high;
+      this.osc.frequency.setValueAtTime(high ? SIREN_HIGH_HZ : SIREN_LOW_HZ, this.ctx.currentTime);
+    }, SIREN_TONE_MS);
+  }
+
+  silence() {
+    if (this.toneInterval !== null) {
+      clearInterval(this.toneInterval);
+      this.toneInterval = null;
+    }
+    this.gain?.gain.setValueAtTime(0, this.ctx?.currentTime ?? 0);
+  }
+
+  stop() {
+    this.silence();
+    try {
+      this.osc?.stop();
+    } catch {
+      // già fermato
+    }
+    this.ctx?.close().catch(() => {});
+    this.ctx = null;
+    this.osc = null;
+    this.gain = null;
   }
 }
 
-/** Allarme Ancora GPS: monitora la posizione e avvisa (visivo + sonoro) se
- * si esce dal raggio di sicurezza impostato attorno al punto di ancoraggio. */
+/** Allarme Ancora GPS: monitora la posizione e avvisa (visivo + sonoro, un
+ * segnale a due toni continuo e ad alto volume) se si esce dal raggio di
+ * sicurezza impostato attorno al punto di ancoraggio. */
 export default function AnchorWatch() {
   const [radius, setRadius] = useState(DEFAULT_RADIUS_M);
   const [armed, setArmed] = useState(false);
@@ -40,21 +93,15 @@ export default function AnchorWatch() {
   const [error, setError] = useState<string | null>(null);
 
   const watchIdRef = useRef<number | null>(null);
-  const beepIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  function stopBeeping() {
-    if (beepIntervalRef.current !== null) {
-      clearInterval(beepIntervalRef.current);
-      beepIntervalRef.current = null;
-    }
-  }
+  const sirenRef = useRef<AlarmSiren | null>(null);
 
   function handleDisarm() {
     if (watchIdRef.current !== null) {
       navigator.geolocation.clearWatch(watchIdRef.current);
       watchIdRef.current = null;
     }
-    stopBeeping();
+    sirenRef.current?.stop();
+    sirenRef.current = null;
     setArmed(false);
     setCenter(null);
     setDistance(null);
@@ -68,6 +115,12 @@ export default function AnchorWatch() {
       setError("Il tuo browser non supporta la geolocalizzazione.");
       return;
     }
+
+    // Creato qui, dentro un gesto utente esplicito (click): i browser
+    // richiedono un'interazione diretta per poter riprodurre audio più tardi.
+    const siren = new AlarmSiren();
+    siren.start();
+    sirenRef.current = siren;
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -109,22 +162,20 @@ export default function AnchorWatch() {
     }
   }, [distance, radius, alarm]);
 
-  // Loop del beep finché l'allarme è attivo e non silenziato.
+  // Suona/silenzia la sirena in base allo stato dell'allarme.
   useEffect(() => {
     if (alarm && !silenced) {
-      beep();
-      beepIntervalRef.current = setInterval(beep, BEEP_INTERVAL_MS);
+      sirenRef.current?.sound();
     } else {
-      stopBeeping();
+      sirenRef.current?.silence();
     }
-    return stopBeeping;
   }, [alarm, silenced]);
 
   // Pulizia al momento dello smontaggio del componente.
   useEffect(() => {
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-      stopBeeping();
+      sirenRef.current?.stop();
     };
   }, []);
 

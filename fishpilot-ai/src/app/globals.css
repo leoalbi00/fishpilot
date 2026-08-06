@@ -62,6 +62,21 @@ html {
   --color-danger: #ff4433;
 }
 
+/* Chiaro: sfondo bianco ultra-pulito, per uso in cabina/ufficio o come
+   preferenza personale (le altre 3 modalità restano pensate per la
+   plancia). Stessi accenti signal/tide, scuriti quanto basta per il
+   contrasto su bianco. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-abyss: #f7fafc;
+  --color-depth: #ffffff;
+  --color-hull: #d8e2ea;
+  --color-signal: #c2680a;
+  --color-tide: #0d9488;
+  --color-foam: #10222c;
+  --color-danger: #dc2626;
+}
+
 body {
   background-color: var(--color-abyss);
   color: var(--color-foam);
@@ -118,6 +133,25 @@ body {
       transparent 120px,
       rgba(242, 184, 168, 0.03) 121px,
       rgba(242, 184, 168, 0.03) 122px
+    );
+}
+
+/* In modalità Chiara la texture batimetrica resta ma con toni scuri a
+   bassissima opacità (i valori chiari del tema base sparirebbero su
+   sfondo bianco). */
+:root[data-theme="light"] .chart-texture::before {
+  background-image: radial-gradient(
+      circle at 12% 8%,
+      rgba(13, 148, 136, 0.08),
+      transparent 45%
+    ),
+    radial-gradient(circle at 88% 0%, rgba(194, 104, 10, 0.07), transparent 40%),
+    repeating-radial-gradient(
+      circle at 50% 0%,
+      transparent 0,
+      transparent 120px,
+      rgba(16, 34, 44, 0.045) 121px,
+      rgba(16, 34, 44, 0.045) 122px
     );
 }
 

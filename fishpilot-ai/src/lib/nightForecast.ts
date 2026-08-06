@@ -1,13 +1,15 @@
 // ============================================================
-// /lib/nightForecast.ts — Modulo Rada: Previsione Notturna
+// /lib/nightForecast.ts — Modulo Rada: Previsione H24
 //
-// Trend di vento e onda dalle 20:00 alle 08:00 del giorno successivo, per
-// valutare se la sosta in rada resterà sicura durante la notte. Nessun
-// calcolo aggiuntivo rispetto al meteo già usato altrove: si seleziona la
-// finestra oraria dalla serie Open-Meteo già disponibile in lib/weather.ts.
+// Trend di vento e onda sulle 24h che seguono le 12:00 di `referenceDateISO`
+// (copre quindi sia il pomeriggio/sera sia l'intera notte successiva), per
+// valutare se la sosta in rada resterà sicura. Nessun calcolo aggiuntivo
+// rispetto al meteo già usato altrove: si seleziona la finestra oraria dalla
+// serie Open-Meteo già disponibile in lib/weather.ts.
 // ============================================================
 
 import { fetchMarineSeries, fetchWeatherSeries } from "@/lib/weather";
+import { kmhToKnots } from "@/lib/utils";
 import type { NightForecastPoint, NightForecastResult } from "@/types/fishing";
 
 function addDays(dateISO: string, days: number): string {
@@ -17,8 +19,9 @@ function addDays(dateISO: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** Previsione vento/onda per la notte che segue `referenceDateISO`
- * (20:00 -> 08:00 del giorno dopo), nello spot indicato. */
+/** Previsione vento/onda sulle 24h che seguono le 12:00 di
+ * `referenceDateISO` (pomeriggio + intera notte successiva), nello spot
+ * indicato. */
 export async function computeNightForecast(
   referenceDateISO: string,
   latitude: number,
@@ -31,8 +34,8 @@ export async function computeNightForecast(
     fetchMarineSeries(latitude, longitude, referenceDateISO, nextDay),
   ]);
 
-  const startTarget = `${referenceDateISO}T20:00`;
-  const endTarget = `${nextDay}T08:00`;
+  const startTarget = `${referenceDateISO}T12:00`;
+  const endTarget = `${nextDay}T12:00`;
 
   const startIdx = weatherSeries.times.findIndex((t) => t >= startTarget);
   const endIdx = weatherSeries.times.findIndex((t) => t >= endTarget);
@@ -67,5 +70,27 @@ export async function computeNightForecast(
     else if (score < -0.5) trend = "migliora";
   }
 
-  return { points, trend, maxWindSpeedKmh, maxWaveHeightM };
+  const maxWindGustsKmh = points.reduce((max, p) => Math.max(max, p.windGustsKmh), 0);
+
+  // Soglie di allerta (stesse usate per il colore rosso dei punti in
+  // NightForecastCard): vento sostenuto >18kn, raffiche >30kn, onda >1m.
+  const stormReasons: string[] = [];
+  if (kmhToKnots(maxWindSpeedKmh) > 18) {
+    stormReasons.push(`vento fino a ${kmhToKnots(maxWindSpeedKmh).toFixed(0)} kn`);
+  }
+  if (kmhToKnots(maxWindGustsKmh) > 30) {
+    stormReasons.push(`raffiche fino a ${kmhToKnots(maxWindGustsKmh).toFixed(0)} kn`);
+  }
+  if (maxWaveHeightM > 1) {
+    stormReasons.push(`onda fino a ${maxWaveHeightM.toFixed(1)} m`);
+  }
+
+  return {
+    points,
+    trend,
+    maxWindSpeedKmh,
+    maxWaveHeightM,
+    stormWarning: stormReasons.length > 0,
+    stormReasons,
+  };
 }

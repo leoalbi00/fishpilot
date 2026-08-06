@@ -17,7 +17,15 @@ export default function Navbar() {
           <ModeSwitcher />
         </div>
 
-        <div className="order-2 sm:order-3">
+        <div className="flex items-center gap-2 order-2 sm:order-3">
+          <Link
+            href="/"
+            aria-label="Torna alla vista principale"
+            title="Home"
+            className="flex items-center justify-center min-w-[40px] min-h-[40px] rounded-full border border-hull/50 bg-abyss/60 text-foam/70 hover:text-foam transition-colors"
+          >
+            🏠
+          </Link>
           <ThemeToggle />
         </div>
       </div>

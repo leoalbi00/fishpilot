@@ -28,7 +28,12 @@ export function AppPreferencesProvider({ children }: { children: React.ReactNode
       setModeState(storedMode);
     }
     const storedTheme = window.localStorage.getItem(THEME_KEY);
-    if (storedTheme === "day" || storedTheme === "sunhigh" || storedTheme === "night") {
+    if (
+      storedTheme === "day" ||
+      storedTheme === "sunhigh" ||
+      storedTheme === "night" ||
+      storedTheme === "light"
+    ) {
       setThemeState(storedTheme);
     }
   }, []);
@@ -37,7 +42,13 @@ export function AppPreferencesProvider({ children }: { children: React.ReactNode
     document.documentElement.setAttribute("data-theme", theme);
 
     const themeColor =
-      theme === "sunhigh" ? "#000000" : theme === "night" ? "#0a0202" : "#061620";
+      theme === "sunhigh"
+        ? "#000000"
+        : theme === "night"
+          ? "#0a0202"
+          : theme === "light"
+            ? "#f7fafc"
+            : "#061620";
     document
       .querySelectorAll('meta[name="theme-color"]')
       .forEach((meta) => meta.setAttribute("content", themeColor));

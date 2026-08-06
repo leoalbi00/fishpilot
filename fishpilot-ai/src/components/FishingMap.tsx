@@ -36,8 +36,10 @@ export default function FishingMap({ zones }: FishingMapProps) {
     map.on("load", () => {
       // Linea di rotta tra i punti campionati (percorso in linea retta: non
       // usiamo un'API di routing marino a pagamento nell'MVP). In modalità
-      // Spot Singolo c'è un solo punto: niente linea, solo il marker.
-      if (zones.length > 1) {
+      // Spot Singolo c'è un solo punto: niente linea, solo il marker. In
+      // modalità Area (raggio) i punti campionati non sono una rotta ma un
+      // ventaglio attorno al centro: niente linea neanche lì.
+      if (zones.length === 3) {
         map.addSource("route", {
           type: "geojson",
           data: {

@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import LocationAutocomplete from "@/components/LocationAutocomplete";
+import MapPicker from "@/components/MapPicker";
 import type { LocationSuggestion } from "@/types/fishing";
 import { saveLocalRoute } from "@/lib/localRoute";
+import { consumeReuseSpot } from "@/lib/crossEcosystem";
+import { saveRecentSearch } from "@/lib/searchHistory";
 
 interface WaypointField {
   id: string;
@@ -37,6 +40,7 @@ export default function RouteForm() {
   const router = useRouter();
 
   const [waypoints, setWaypoints] = useState<WaypointField[]>([newWaypoint(), newWaypoint()]);
+  const [mapPickerFor, setMapPickerFor] = useState<string | null>(null);
   const [cruiseSpeedKn, setCruiseSpeedKn] = useState("6");
   const [fuelLPerHour, setFuelLPerHour] = useState("");
   const [date, setDate] = useState("");
@@ -46,6 +50,18 @@ export default function RouteForm() {
 
   useEffect(() => {
     setDate(new Date().toISOString().slice(0, 10));
+
+    // Spot riusato da un altro ecosistema (pulsante "Usa questo spot per...").
+    const reused = consumeReuseSpot();
+    if (reused) {
+      setWaypoints((prev) => {
+        const [first, ...rest] = prev;
+        return [
+          { ...first, coords: { lat: reused.latitude, lng: reused.longitude }, location: "" },
+          ...rest,
+        ];
+      });
+    }
   }, []);
 
   function updateWaypoint(id: string, patch: Partial<WaypointField>) {
@@ -190,12 +206,13 @@ export default function RouteForm() {
                 <LocationAutocomplete
                   value={w.location}
                   onChange={(text) => updateWaypoint(w.id, { location: text })}
-                  onSelect={(s: LocationSuggestion) =>
+                  onSelect={(s: LocationSuggestion) => {
                     updateWaypoint(w.id, {
                       location: s.label,
                       coords: { lat: s.latitude, lng: s.longitude },
-                    })
-                  }
+                    });
+                    saveRecentSearch({ label: s.label, latitude: s.latitude, longitude: s.longitude });
+                  }}
                   placeholder="Es. Capri (NA)"
                   className={inputClasses}
                 />
@@ -208,7 +225,28 @@ export default function RouteForm() {
                 >
                   📍
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setMapPickerFor((cur) => (cur === w.id ? null : w.id))}
+                  aria-pressed={mapPickerFor === w.id}
+                  aria-label="Scegli sulla mappa"
+                  className={`shrink-0 min-h-[48px] px-4 rounded-lg border text-sm transition-all active:scale-[0.97] ${
+                    mapPickerFor === w.id
+                      ? "bg-tide/20 border-tide text-tide"
+                      : "border-tide/50 text-tide hover:bg-tide/10"
+                  }`}
+                >
+                  🗺️
+                </button>
               </div>
+            )}
+            {!w.coords && mapPickerFor === w.id && (
+              <MapPicker
+                onPick={(p) => {
+                  updateWaypoint(w.id, { coords: p, location: "" });
+                  setMapPickerFor(null);
+                }}
+              />
             )}
             {w.locateError && <p className="text-danger text-xs font-body">{w.locateError}</p>}
           </div>

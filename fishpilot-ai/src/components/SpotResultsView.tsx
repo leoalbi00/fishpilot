@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAppPreferences } from "@/components/AppPreferencesProvider";
+import { saveReuseSpot } from "@/lib/crossEcosystem";
 import ScoreGauge from "@/components/ScoreGauge";
 import ConditionsCard from "@/components/ConditionsCard";
 import FavoriteButton from "@/components/FavoriteButton";
@@ -32,6 +34,17 @@ const TECHNIQUE_LABELS: Record<string, string> = {
  * (/dashboard/local, quando il salvataggio su Supabase non è riuscito). */
 export default function SpotResultsView({ report }: { report: SpotReportResult }) {
   const { mode, setMode } = useAppPreferences();
+  const router = useRouter();
+
+  function useForTraversata() {
+    saveReuseSpot({
+      label: report.trip.startLocation,
+      latitude: report.trip.latitude,
+      longitude: report.trip.longitude,
+    });
+    setMode("traversata");
+    router.push("/");
+  }
 
   const formattedDate = new Date(report.trip.date).toLocaleString("it-IT", {
     weekday: "long",
@@ -67,6 +80,25 @@ export default function SpotResultsView({ report }: { report: SpotReportResult }
             Rapporto calcolato ma non salvato: questo link non è condivisibile e andrà perso
             ricaricando la pagina. Ricalcola quando serve.
           </p>
+        )}
+
+        {mode !== "traversata" && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setMode(mode === "rada" ? "pesca" : "rada")}
+              className="text-xs font-body rounded-full border border-hull/50 text-foam/60 px-3 py-1.5 hover:border-tide/60 hover:text-foam transition-colors"
+            >
+              {mode === "rada" ? "🎣 Usa questo spot per Pesca" : "⚓ Usa questo spot per Rada"}
+            </button>
+            <button
+              type="button"
+              onClick={useForTraversata}
+              className="text-xs font-body rounded-full border border-hull/50 text-foam/60 px-3 py-1.5 hover:border-tide/60 hover:text-foam transition-colors"
+            >
+              ⛵ Usa questo spot per Traversata
+            </button>
+          </div>
         )}
       </div>
 

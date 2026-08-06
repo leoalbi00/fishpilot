@@ -11,6 +11,7 @@
 
 import { fetchMarineConditions, fetchWeatherConditions } from "@/lib/weather";
 import { haversineDistanceM, kmhToKnots } from "@/lib/utils";
+import { computeSeaRoute } from "@/lib/searoute";
 import type {
   GeocodedPlace,
   RelativeWindSector,
@@ -136,6 +137,8 @@ export async function planRoute(input: RoutePlanningInput): Promise<RoutePlan> {
     distanceNm: number;
     bearingDeg: number;
     etaUtcMs: number;
+    pathCoordinates?: [number, number][];
+    isSeaRouted: boolean;
   }
 
   let cumulativeHours = 0;
@@ -145,7 +148,11 @@ export async function planRoute(input: RoutePlanningInput): Promise<RoutePlan> {
   for (let i = 0; i < waypoints.length - 1; i++) {
     const from = waypoints[i];
     const to = waypoints[i + 1];
-    const distanceNm = haversineDistanceM(from, to) / METERS_PER_NM;
+    // Rotta via mare stimata (rete marittima precalcolata, offline): usata
+    // per distanza/ETA e per disegnare un percorso più realistico quando
+    // disponibile; altrimenti si ricade sulla linea diretta (già presente).
+    const seaRoute = computeSeaRoute(from, to);
+    const distanceNm = seaRoute?.distanceNm ?? haversineDistanceM(from, to) / METERS_PER_NM;
     const bearingDeg = initialBearingDeg(from, to);
 
     cumulativeHours += distanceNm / cruiseSpeedKn;
@@ -157,6 +164,8 @@ export async function planRoute(input: RoutePlanningInput): Promise<RoutePlan> {
       distanceNm,
       bearingDeg,
       etaUtcMs: departureUtcMs + cumulativeHours * 3600000,
+      pathCoordinates: seaRoute?.coordinates,
+      isSeaRouted: Boolean(seaRoute),
     });
   }
 
@@ -200,6 +209,8 @@ export async function planRoute(input: RoutePlanningInput): Promise<RoutePlan> {
         currentDirectionDeg: marine.currentDirectionDeg,
         seaSurfaceTempC: marine.seaSurfaceTempC,
         warnings,
+        pathCoordinates: g.pathCoordinates,
+        isSeaRouted: g.isSeaRouted,
       } satisfies RouteLeg;
     })
   );

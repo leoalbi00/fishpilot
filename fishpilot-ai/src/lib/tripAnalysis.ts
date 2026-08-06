@@ -1,5 +1,5 @@
 import { runFishingAlgorithm } from "@/lib/fishingAlgorithm";
-import { buildTimeInfo, getSeason, midpoint } from "@/lib/utils";
+import { buildTimeInfo, destinationPoint, getSeason, midpoint } from "@/lib/utils";
 import { fetchMarineConditions, fetchWeatherConditions } from "@/lib/weather";
 import type {
   FishingAlgorithmResult,
@@ -19,6 +19,9 @@ export interface TripAnalysisInput {
   dateISO: string; // "YYYY-MM-DD"
   hour: number; // 0-23
   minute: number; // 0-59
+  /** Modalità Pesca "Area (raggio)": se presente (e assente `destination`),
+   * si campionano più punti nell'area invece del solo centro. */
+  areaRadiusM?: number;
 }
 
 export interface TripAnalysisResult {
@@ -43,7 +46,7 @@ export interface TripAnalysisResult {
 export async function analyzeTrip(
   input: TripAnalysisInput
 ): Promise<TripAnalysisResult> {
-  const { start, destination } = input;
+  const { start, destination, areaRadiusM } = input;
   const season = getSeason(input.dateISO);
 
   const samplePoints = destination
@@ -59,7 +62,15 @@ export async function analyzeTrip(
           longitude: destination.longitude,
         },
       ]
-    : [{ label: start.name, latitude: start.latitude, longitude: start.longitude }];
+    : areaRadiusM
+      ? [
+          { label: `${start.name} (centro)`, latitude: start.latitude, longitude: start.longitude },
+          { label: "Area Nord", ...destinationPoint(start, 0, areaRadiusM) },
+          { label: "Area Est", ...destinationPoint(start, 90, areaRadiusM) },
+          { label: "Area Sud", ...destinationPoint(start, 180, areaRadiusM) },
+          { label: "Area Ovest", ...destinationPoint(start, 270, areaRadiusM) },
+        ]
+      : [{ label: start.name, latitude: start.latitude, longitude: start.longitude }];
 
   const sampled = await Promise.all(
     samplePoints.map(async (point) => {
