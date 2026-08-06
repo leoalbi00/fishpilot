@@ -239,7 +239,7 @@ export interface RouteLeg {
   seaSurfaceTempC: number;
   warnings: string[];
   /** Percorso via mare [lng,lat] stimato (searoute-js), se disponibile: vedi
-   * lib/searoute.ts. Assente = fallback alla linea diretta from→to. */
+   * lib/seaRouting.ts. Assente = fallback alla linea diretta from→to. */
   pathCoordinates?: [number, number][];
   /** true se `pathCoordinates` è una rotta marittima stimata (non la linea
    * diretta): usato per mostrare il disclaimer "non per navigazione". */

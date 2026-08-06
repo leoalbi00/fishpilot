@@ -11,7 +11,7 @@
 
 import { fetchMarineConditions, fetchWeatherConditions } from "@/lib/weather";
 import { haversineDistanceM, kmhToKnots } from "@/lib/utils";
-import { computeSeaRoute } from "@/lib/searoute";
+import { computeSeaRoute } from "@/lib/seaRouting";
 import type {
   GeocodedPlace,
   RelativeWindSector,
