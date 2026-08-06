@@ -64,3 +64,27 @@ export function labelForScore(score: number): string {
   if (score < 85) return "Buono";
   return "Eccellente";
 }
+
+/** km/h -> nodi. */
+export function kmhToKnots(kmh: number): number {
+  return kmh / 1.852;
+}
+
+const COMPASS_LABELS = [
+  "N",
+  "NE",
+  "E",
+  "SE",
+  "S",
+  "SO",
+  "O",
+  "NO",
+] as const;
+
+/** Converte una direzione in gradi (0-360, 0 = Nord) nel punto cardinale
+ * italiano più vicino (N, NE, E, SE, S, SO, O, NO). */
+export function degToCompass(deg: number): string {
+  const normalized = ((deg % 360) + 360) % 360;
+  const index = Math.round(normalized / 45) % 8;
+  return COMPASS_LABELS[index];
+}

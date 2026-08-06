@@ -10,7 +10,7 @@ interface MapReportRow {
   zones: ZonePoint[];
   trips: {
     start_location: string;
-    destination: string;
+    destination: string | null;
   } | null;
 }
 
@@ -44,12 +44,17 @@ export default async function MapPage({
       <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 max-w-6xl mx-auto w-full">
         <div>
           <p className="font-mono text-xs tracking-[0.3em] text-tide uppercase">
-            Rotta e zone di pesca
+            {trip?.destination ? "Rotta e zone di pesca" : "Zona di pesca"}
           </p>
           {trip && (
             <h1 className="font-display text-xl sm:text-2xl text-foam font-semibold">
-              {trip.start_location} <span className="text-foam/40">→</span>{" "}
-              {trip.destination}
+              {trip.start_location}
+              {trip.destination && (
+                <>
+                  {" "}
+                  <span className="text-foam/40">→</span> {trip.destination}
+                </>
+              )}
             </h1>
           )}
         </div>
@@ -81,9 +86,9 @@ export default async function MapPage({
         </div>
 
         <p className="text-xs text-foam/40 mt-3 font-body">
-          Nota: nell&apos;MVP il percorso è tracciato come linea diretta tra i
-          punti campionati (partenza, metà rotta, destinazione); non usa
-          ancora un&apos;API di navigazione marina reale.
+          {trip?.destination
+            ? "Nota: nell'MVP il percorso è tracciato come linea diretta tra i punti campionati (partenza, metà rotta, destinazione); non usa ancora un'API di navigazione marina reale."
+            : "Nota: modalità Spot Singolo, un solo punto campionato."}
         </p>
       </div>
     </div>

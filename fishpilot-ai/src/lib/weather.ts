@@ -10,6 +10,9 @@ export interface RawMarinePoint {
   waveHeightM: number;
   wavePeriodS: number;
   seaSurfaceTempC: number;
+  /** Non sempre disponibile: il modello di corrente di Open-Meteo non copre tutte le zone. */
+  currentSpeedKmh?: number;
+  currentDirectionDeg?: number;
 }
 
 export interface RawWeatherPoint {
@@ -56,7 +59,7 @@ export async function fetchMarineConditions(
 ): Promise<RawMarinePoint> {
   const url =
     `https://marine-api.open-meteo.com/v1/marine?latitude=${latitude}&longitude=${longitude}` +
-    `&hourly=wave_height,wave_period,sea_surface_temperature` +
+    `&hourly=wave_height,wave_period,sea_surface_temperature,ocean_current_velocity,ocean_current_direction` +
     `&start_date=${dateISO}&end_date=${dateISO}&timezone=auto`;
 
   const res = await fetch(url);
@@ -76,10 +79,16 @@ export async function fetchMarineConditions(
   const target = `${dateISO}T${pad(hour)}:00`;
   const idx = closestHourIndex(times, target);
 
+  const currentSpeedKmh = data.hourly.ocean_current_velocity?.[idx];
+  const currentDirectionDeg = data.hourly.ocean_current_direction?.[idx];
+
   return {
     waveHeightM: data.hourly.wave_height?.[idx] ?? 0,
     wavePeriodS: data.hourly.wave_period?.[idx] ?? 0,
     seaSurfaceTempC: data.hourly.sea_surface_temperature?.[idx] ?? 18,
+    currentSpeedKmh: typeof currentSpeedKmh === "number" ? currentSpeedKmh : undefined,
+    currentDirectionDeg:
+      typeof currentDirectionDeg === "number" ? currentDirectionDeg : undefined,
   };
 }
 

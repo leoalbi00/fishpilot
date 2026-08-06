@@ -10,6 +10,10 @@ export type FishingTechnique =
   | "jigging"
   | "drifting";
 
+/** Modalità di ricerca nel form: uno spot singolo (default) oppure una tratta
+ * partenza -> destinazione (modalità avanzata, facoltativa). */
+export type SearchMode = "spot" | "tratta";
+
 /** Condizioni meteo generali (aria, nuvolosità, pressione, onde). */
 export interface WeatherInput {
   waveHeightM: number;
@@ -57,6 +61,10 @@ export interface SpeciesResult {
 export interface RecommendationsResult {
   trollingSpeedKn?: string;
   depthM: string;
+  /** Tipo di fondale stimato per la zona (roccia, sabbia, misto, grotta...). */
+  seabedType: string;
+  /** Montatura consigliata per la tecnica scelta. */
+  rig: string;
   lures: string[];
   bestTimeWindow: string;
   notes: string[];
@@ -98,13 +106,31 @@ export interface GeocodedPlace {
   admin1?: string;
 }
 
-/** Punto campionato lungo la rotta, con relativo Fishing Score (per la mappa). */
+/** Punto campionato lungo la rotta (o lo spot singolo), con relativo Fishing
+ * Score e il dettaglio meteo-marino usato dalla Dashboard e dalla Mappa. */
 export interface ZonePoint {
   label: string;
   latitude: number;
   longitude: number;
   score: number;
   seaSurfaceTempC: number;
+  airTempC: number;
+  pressureHpa: number;
   waveHeightM: number;
+  wavePeriodS: number;
   windSpeedKmh: number;
+  windDirectionDeg: number;
+  /** Corrente marina: non sempre disponibile per ogni zona (dato Open-Meteo). */
+  currentSpeedKmh?: number;
+  currentDirectionDeg?: number;
+}
+
+/** Spot salvato tra i preferiti dall'utente (persistito su Supabase e/o localStorage). */
+export interface FavoriteSpot {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  technique: FishingTechnique;
+  createdAt: string;
 }

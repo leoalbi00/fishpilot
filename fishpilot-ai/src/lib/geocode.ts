@@ -77,3 +77,72 @@ export async function geocodeLocation(raw: string): Promise<GeocodedPlace> {
     admin1: chosen.admin1,
   };
 }
+
+interface NominatimReverseResult {
+  name?: string;
+  display_name?: string;
+  address?: {
+    village?: string;
+    town?: string;
+    city?: string;
+    municipality?: string;
+    county?: string;
+    state?: string;
+    country?: string;
+  };
+}
+
+/**
+ * Converte coordinate (es. dalla geolocalizzazione GPS del browser) in un
+ * nome di luogo leggibile, usando il reverse geocoding di Nominatim
+ * (OpenStreetMap, gratuito): https://nominatim.org/release-docs/latest/api/Reverse/
+ * Se il servizio non risponde, ripiega su un'etichetta basata sulle coordinate
+ * così l'analisi può comunque proseguire.
+ */
+export async function reverseGeocode(
+  latitude: number,
+  longitude: number
+): Promise<GeocodedPlace> {
+  const fallback: GeocodedPlace = {
+    name: `${latitude.toFixed(3)}, ${longitude.toFixed(3)}`,
+    displayName: `Posizione GPS (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`,
+    latitude,
+    longitude,
+  };
+
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}` +
+      `&lon=${longitude}&zoom=12&accept-language=it`;
+
+    const res = await fetch(url, {
+      headers: { "User-Agent": "FishPilotAI/1.0 (https://fishpilot.ai)" },
+    });
+    if (!res.ok) return fallback;
+
+    const data = (await res.json()) as NominatimReverseResult;
+    const place =
+      data.address?.town ??
+      data.address?.city ??
+      data.address?.village ??
+      data.address?.municipality ??
+      data.name;
+
+    if (!place) return fallback;
+
+    const admin1 = data.address?.state ?? data.address?.county;
+
+    return {
+      name: place,
+      displayName: [place, admin1, data.address?.country]
+        .filter(Boolean)
+        .join(", "),
+      latitude,
+      longitude,
+      country: data.address?.country,
+      admin1,
+    };
+  } catch {
+    return fallback;
+  }
+}

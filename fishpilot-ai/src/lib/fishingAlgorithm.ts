@@ -129,6 +129,8 @@ function buildRecommendations(
   const notes: string[] = [];
   const lures = new Set<string>();
   let depthM = "0-10 m (superficie)";
+  let seabedType = "Colonna d'acqua libera, nessun fondale specifico";
+  let rig = "Lenza madre + shock leader e piombo antitorsione";
   let trollingSpeedKn: string | undefined;
 
   const topNames = species.slice(0, 3).map((s) => s.name.toLowerCase());
@@ -148,34 +150,45 @@ function buildRecommendations(
 
       lures.add("piume in scia (feather jig)");
       lures.add("octopus / squid skirt");
+      rig = "Lenza madre in monofilo/treccia + piombo paravano e terminale in fluorocarbon";
 
       if (topNames.some((n) => n.includes("ricciola"))) {
         lures.add("minnow affondante");
         depthM = "15-40 m (vicino a strutture/secche)";
+        seabedType = "Roccia / secche (strutture sommerse)";
       } else {
         depthM = "0-15 m (superficie/sub-superficie)";
+        seabedType = "Pelagico, colonna d'acqua libera al largo";
       }
       break;
     }
     case "jigging": {
       lures.add("jig verticale 60-150 g");
       depthM = "30-80 m (su secche e strutture)";
+      seabedType = "Roccia, secche e strutture sommerse";
+      rig = "Treccia PE + shock leader in fluorocarbon, jig con assist hook";
       break;
     }
     case "spinning": {
       lures.add("minnow / popper di superficie");
       lures.add("esca siliconica");
       depthM = "0-5 m";
+      seabedType = "Costa rocciosa o scogliera, acqua bassa";
+      rig = "Treccia sottile + terminale in fluorocarbon, senza piombo (o piombino minimo)";
       break;
     }
     case "bolentino": {
       lures.add("esca naturale (bigattini, gamberetto, calamaro)");
       depthM = "20-60 m su fondale misto";
+      seabedType = "Sabbia / fondale misto sabbia-roccia";
+      rig = "Lenza con 2-3 ami a paternoster e piombo terminale";
       break;
     }
     case "drifting": {
       lures.add("esca naturale in deriva (sardina, alaccia)");
       depthM = "10-40 m";
+      seabedType = "Fondale variabile, pesca in deriva a mezz'acqua";
+      rig = "Amo singolo su lenza leggera, senza piombo (o piombo minimo) per lasciare scendere l'esca naturalmente";
       break;
     }
   }
@@ -204,6 +217,8 @@ function buildRecommendations(
   return {
     trollingSpeedKn,
     depthM,
+    seabedType,
+    rig,
     lures: Array.from(lures),
     bestTimeWindow,
     notes,

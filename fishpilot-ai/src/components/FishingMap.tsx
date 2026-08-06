@@ -34,31 +34,34 @@ export default function FishingMap({ zones }: FishingMapProps) {
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     map.on("load", () => {
-      // Linea di rotta tra i punti campionati (percorso in linea retta:
-      // non usiamo un'API di routing marino a pagamento nell'MVP).
-      map.addSource("route", {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {},
-          geometry: {
-            type: "LineString",
-            coordinates: zones.map((z) => [z.longitude, z.latitude]),
+      // Linea di rotta tra i punti campionati (percorso in linea retta: non
+      // usiamo un'API di routing marino a pagamento nell'MVP). In modalità
+      // Spot Singolo c'è un solo punto: niente linea, solo il marker.
+      if (zones.length > 1) {
+        map.addSource("route", {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: zones.map((z) => [z.longitude, z.latitude]),
+            },
           },
-        },
-      });
+        });
 
-      map.addLayer({
-        id: "route-line",
-        type: "line",
-        source: "route",
-        paint: {
-          "line-color": "#2dd4bf",
-          "line-width": 3,
-          "line-dasharray": [2, 2],
-          "line-opacity": 0.85,
-        },
-      });
+        map.addLayer({
+          id: "route-line",
+          type: "line",
+          source: "route",
+          paint: {
+            "line-color": "#2dd4bf",
+            "line-width": 3,
+            "line-dasharray": [2, 2],
+            "line-opacity": 0.85,
+          },
+        });
+      }
 
       // Un marker colorato per ogni zona, in base al Fishing Score locale.
       zones.forEach((zone) => {

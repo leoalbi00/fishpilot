@@ -1,15 +1,65 @@
-import type { RecommendationsResult } from "@/types/fishing";
+import type { RecommendationsResult, SpeciesResult } from "@/types/fishing";
+
+const TECHNIQUE_LABELS: Record<string, string> = {
+  traina: "Traina",
+  bolentino: "Bolentino",
+  spinning: "Spinning",
+  jigging: "Jigging",
+  drifting: "Drifting",
+};
+
+interface RecommendationsCardProps {
+  recommendations: RecommendationsResult;
+  species: SpeciesResult[];
+  technique: string;
+}
 
 export default function RecommendationsCard({
   recommendations,
-}: {
-  recommendations: RecommendationsResult;
-}) {
+  species,
+  technique,
+}: RecommendationsCardProps) {
+  const topSpecies = species.slice(0, 3).map((s) => s.name);
+
   return (
     <div className="rounded-lg border border-hull/40 bg-depth/60 p-5 space-y-4">
-      <h3 className="font-display text-foam text-lg">Consigli</h3>
+      <h3 className="font-display text-foam text-lg">Cosa e Come Pescare</h3>
 
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div className="sm:col-span-2">
+          <dt className="text-foam/50 uppercase text-xs tracking-wide font-mono">
+            Cosa pescare
+          </dt>
+          <dd className="text-foam mt-0.5">
+            {topSpecies.length > 0 ? topSpecies.join(" · ") : "Nessuna specie compatibile trovata"}
+          </dd>
+        </div>
+
+        <div>
+          <dt className="text-foam/50 uppercase text-xs tracking-wide font-mono">
+            Dove — Profondità
+          </dt>
+          <dd className="font-mono text-signal text-base mt-0.5">
+            {recommendations.depthM}
+          </dd>
+        </div>
+
+        <div>
+          <dt className="text-foam/50 uppercase text-xs tracking-wide font-mono">
+            Dove — Fondale
+          </dt>
+          <dd className="text-foam mt-0.5">{recommendations.seabedType}</dd>
+        </div>
+
+        <div>
+          <dt className="text-foam/50 uppercase text-xs tracking-wide font-mono">
+            Come — Tecnica
+          </dt>
+          <dd className="font-mono text-signal text-base mt-0.5">
+            {TECHNIQUE_LABELS[technique] ?? technique}
+          </dd>
+        </div>
+
         {recommendations.trollingSpeedKn && (
           <div>
             <dt className="text-foam/50 uppercase text-xs tracking-wide font-mono">
@@ -21,18 +71,16 @@ export default function RecommendationsCard({
           </div>
         )}
 
-        <div>
+        <div className="sm:col-span-2">
           <dt className="text-foam/50 uppercase text-xs tracking-wide font-mono">
-            Profondità consigliata
+            Come — Montatura
           </dt>
-          <dd className="font-mono text-signal text-base mt-0.5">
-            {recommendations.depthM}
-          </dd>
+          <dd className="text-foam mt-0.5">{recommendations.rig}</dd>
         </div>
 
         <div className="sm:col-span-2">
           <dt className="text-foam/50 uppercase text-xs tracking-wide font-mono">
-            Artificiali consigliati
+            Come — Esche/artificiali
           </dt>
           <dd className="text-foam mt-0.5">
             {recommendations.lures.join(" · ")}

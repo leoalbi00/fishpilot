@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import TripForm from "@/components/TripForm";
+import FavoritesPanel from "@/components/FavoritesPanel";
 
 export default function HomePage() {
   return (
@@ -15,13 +16,14 @@ export default function HomePage() {
             Leggi il mare prima di salpare
           </h1>
           <p className="font-body text-foam/70 text-base sm:text-lg">
-            Inserisci partenza, destinazione, tecnica e orario: FishPilot AI
-            incrocia meteo, mare e stagione e ti dice dove conviene calare la
-            lenza.
+            Indica il tuo spot (o usa il GPS), la tecnica e l&apos;orario:
+            FishPilot AI incrocia meteo, mare e stagione e ti dice cosa, dove
+            e come pescare.
           </p>
         </div>
 
         <TripForm />
+        <FavoritesPanel />
       </main>
 
       <footer className="text-center text-xs text-foam/40 font-mono py-6">

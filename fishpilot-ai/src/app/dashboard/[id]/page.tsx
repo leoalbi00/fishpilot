@@ -5,9 +5,11 @@ import ScoreGauge from "@/components/ScoreGauge";
 import SpeciesList from "@/components/SpeciesList";
 import RecommendationsCard from "@/components/RecommendationsCard";
 import ConditionsCard from "@/components/ConditionsCard";
+import FavoriteButton from "@/components/FavoriteButton";
 import { createClient } from "@/lib/supabase/server";
 import type {
   ConditionsSummary,
+  FishingTechnique,
   RecommendationsResult,
   SpeciesResult,
   ZonePoint,
@@ -31,9 +33,11 @@ interface FishingReportRow {
   created_at: string;
   trips: {
     start_location: string;
-    destination: string;
+    destination: string | null;
     technique: string;
     date: string;
+    start_lat: number;
+    start_lng: number;
   } | null;
 }
 
@@ -48,7 +52,7 @@ export default async function DashboardPage({
   const { data } = await supabase
     .from("fishing_reports")
     .select(
-      "id, score, species, recommendations, conditions, zones, created_at, trips(start_location, destination, technique, date)"
+      "id, score, species, recommendations, conditions, zones, created_at, trips(start_location, destination, technique, date, start_lat, start_lng)"
     )
     .eq("id", id)
     .single();
@@ -63,7 +67,9 @@ export default async function DashboardPage({
   }
 
   const trip = report.trips;
-  const midZone = report.zones?.[1];
+  // In modalità Spot c'è un solo punto (indice 0), in modalità Tratta il
+  // punto medio (indice 1) rappresenta la zona di pesca principale.
+  const primaryZone = report.zones?.[Math.floor((report.zones?.length ?? 1) / 2)];
 
   const formattedDate = trip
     ? new Date(trip.date).toLocaleString("it-IT", {
@@ -80,14 +86,19 @@ export default async function DashboardPage({
       <Navbar />
 
       <main className="flex-1 px-6 py-10 sm:py-14 max-w-4xl mx-auto w-full space-y-8">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <p className="font-mono text-xs tracking-[0.3em] text-tide uppercase">
             Rapporto di pesca
           </p>
           {trip && (
             <h1 className="font-display text-2xl sm:text-3xl text-foam font-semibold">
-              {trip.start_location} <span className="text-foam/40">→</span>{" "}
-              {trip.destination}
+              {trip.start_location}
+              {trip.destination && (
+                <>
+                  {" "}
+                  <span className="text-foam/40">→</span> {trip.destination}
+                </>
+              )}
             </h1>
           )}
           {trip && (
@@ -95,6 +106,14 @@ export default async function DashboardPage({
               {TECHNIQUE_LABELS[trip.technique] ?? trip.technique} ·{" "}
               {formattedDate}
             </p>
+          )}
+          {trip && (
+            <FavoriteButton
+              name={trip.start_location}
+              latitude={trip.start_lat}
+              longitude={trip.start_lng}
+              technique={trip.technique as FishingTechnique}
+            />
           )}
         </div>
 
@@ -104,12 +123,7 @@ export default async function DashboardPage({
           </div>
 
           <div className="space-y-6 w-full">
-            <ConditionsCard
-              conditions={report.conditions}
-              seaSurfaceTempC={midZone?.seaSurfaceTempC}
-              waveHeightM={midZone?.waveHeightM}
-              windSpeedKmh={midZone?.windSpeedKmh}
-            />
+            <ConditionsCard conditions={report.conditions} zone={primaryZone} />
 
             <div>
               <h2 className="font-display text-foam text-lg mb-3">
@@ -118,7 +132,11 @@ export default async function DashboardPage({
               <SpeciesList species={report.species} />
             </div>
 
-            <RecommendationsCard recommendations={report.recommendations} />
+            <RecommendationsCard
+              recommendations={report.recommendations}
+              species={report.species}
+              technique={trip?.technique ?? ""}
+            />
           </div>
         </div>
 

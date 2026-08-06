@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeTrip } from "@/lib/tripAnalysis";
+import { geocodeLocation, reverseGeocode } from "@/lib/geocode";
 import { createClient } from "@/lib/supabase/server";
-import type { FishingTechnique } from "@/types/fishing";
+import type { FishingTechnique, GeocodedPlace, SearchMode } from "@/types/fishing";
 
 const VALID_TECHNIQUES: FishingTechnique[] = [
   "traina",
@@ -14,7 +15,19 @@ const VALID_TECHNIQUES: FishingTechnique[] = [
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { startLocation, destination, technique, date, time } = body as {
+    const {
+      mode = "spot",
+      location,
+      coords,
+      startLocation,
+      destination,
+      technique,
+      date,
+      time,
+    } = body as {
+      mode?: SearchMode;
+      location?: string;
+      coords?: { lat?: number; lng?: number };
       startLocation?: string;
       destination?: string;
       technique?: string;
@@ -22,9 +35,9 @@ export async function POST(req: NextRequest) {
       time?: string;
     };
 
-    if (!startLocation || !destination || !technique || !date || !time) {
+    if (!technique || !date || !time) {
       return NextResponse.json(
-        { error: "Compila tutti i campi del viaggio (partenza, destinazione, tecnica, data, ora)." },
+        { error: "Compila tutti i campi richiesti (tecnica, data, ora)." },
         { status: 400 }
       );
     }
@@ -44,30 +57,72 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Orario non valido." }, { status: 400 });
     }
 
-    // 1) Geocoding + meteo/mare + algoritmo di scoring
+    let start: GeocodedPlace;
+    let destinationPlace: GeocodedPlace | undefined;
+
+    if (mode === "tratta") {
+      if (!startLocation || !destination) {
+        return NextResponse.json(
+          { error: "Compila partenza e destinazione della tratta." },
+          { status: 400 }
+        );
+      }
+      [start, destinationPlace] = await Promise.all([
+        geocodeLocation(startLocation),
+        geocodeLocation(destination),
+      ]);
+    } else {
+      const hasCoords =
+        coords && typeof coords.lat === "number" && typeof coords.lng === "number";
+
+      if (!hasCoords && !location) {
+        return NextResponse.json(
+          {
+            error:
+              "Indica uno spot (testo) oppure usa la geolocalizzazione GPS.",
+          },
+          { status: 400 }
+        );
+      }
+
+      if (hasCoords) {
+        const { lat, lng } = coords as { lat: number; lng: number };
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          return NextResponse.json(
+            { error: "Coordinate GPS non valide." },
+            { status: 400 }
+          );
+        }
+        start = await reverseGeocode(lat, lng);
+      } else {
+        start = await geocodeLocation(location as string);
+      }
+    }
+
+    // 1) Meteo/mare + algoritmo di scoring per lo spot (o la tratta)
     const analysis = await analyzeTrip({
-      startLocationRaw: startLocation,
-      destinationRaw: destination,
+      start,
+      destination: destinationPlace,
       technique: technique as FishingTechnique,
       dateISO: date,
       hour,
       minute,
     });
 
-    // 2) Salvataggio su Supabase: trip (viaggio) + fishing_report (risultato)
+    // 2) Salvataggio su Supabase: trip (viaggio/spot) + fishing_report (risultato)
     const supabase = await createClient();
 
     const { data: trip, error: tripError } = await supabase
       .from("trips")
       .insert({
         start_location: analysis.start.displayName,
-        destination: analysis.destination.displayName,
+        destination: analysis.destination?.displayName ?? null,
         technique,
         date: `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`,
         start_lat: analysis.start.latitude,
         start_lng: analysis.start.longitude,
-        dest_lat: analysis.destination.latitude,
-        dest_lng: analysis.destination.longitude,
+        dest_lat: analysis.destination?.latitude ?? null,
+        dest_lng: analysis.destination?.longitude ?? null,
       })
       .select()
       .single();
