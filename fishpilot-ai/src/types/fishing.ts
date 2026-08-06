@@ -161,6 +161,15 @@ export interface GeocodedPlace {
   admin1?: string;
 }
 
+/** Suggerimento di autocompletamento località (ricerca Nominatim). */
+export interface LocationSuggestion {
+  id: string;
+  label: string;
+  displayName: string;
+  latitude: number;
+  longitude: number;
+}
+
 /** Punto campionato lungo la rotta (o lo spot singolo), con relativo Fishing
  * Score e il dettaglio meteo-marino usato dalla Dashboard e dalla Mappa. */
 export interface ZonePoint {
@@ -276,4 +285,37 @@ export interface NightForecastResult {
   trend: "migliora" | "peggiora" | "stabile";
   maxWindSpeedKmh: number;
   maxWaveHeightM: number;
+}
+
+// ============================================================
+// ⚓/🎣 Rapporto spot (Rada e Pesca condividono la stessa analisi)
+// ============================================================
+
+export interface SpotTripInfo {
+  startLocation: string;
+  technique: FishingTechnique;
+  date: string; // ISO
+  latitude: number;
+  longitude: number;
+}
+
+/** Rapporto completo per uno spot, così come mostrato a schermo: usato sia
+ * dalla pagina persistita (/dashboard/[id], letta da Supabase) sia dal
+ * fallback locale (/dashboard/local, quando il salvataggio su Supabase non
+ * è andato a buon fine) — vedi SpotResultsView. */
+export interface SpotReportResult {
+  /** Presente solo se il rapporto è persistito (serve per il link alla mappa). */
+  id?: string;
+  /** false se il rapporto non è stato salvato su Supabase (nessun link condivisibile/mappa). */
+  persisted: boolean;
+  score: number;
+  species: SpeciesResult[];
+  recommendations: RecommendationsResult;
+  conditions: ConditionsSummary;
+  primaryZone?: ZonePoint;
+  trip: SpotTripInfo;
+  solunar: SolunarResult;
+  tide: TideResult;
+  nightForecast: NightForecastResult;
+  utcOffsetSeconds: number;
 }

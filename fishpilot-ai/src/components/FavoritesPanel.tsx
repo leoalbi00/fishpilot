@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { listFavorites, removeFavorite } from "@/lib/favorites";
+import { saveLocalReport } from "@/lib/localReport";
 import type { FavoriteSpot } from "@/types/fishing";
 
 const TECHNIQUE_LABELS: Record<string, string> = {
@@ -52,7 +53,14 @@ export default function FavoritesPanel() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Analisi non riuscita.");
 
-      router.push(`/dashboard/${data.reportId}`);
+      if (data.reportId) {
+        router.push(`/dashboard/${data.reportId}`);
+      } else if (data.report) {
+        saveLocalReport(data.report);
+        router.push("/dashboard/local");
+      } else {
+        throw new Error("Risposta inattesa dal server.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore imprevisto.");
       setLoadingId(null);
@@ -60,6 +68,10 @@ export default function FavoritesPanel() {
   }
 
   async function handleRemove(id: string) {
+    // Rimandato di un tick: il bottone cliccato appartiene alla riga che
+    // sta per essere rimossa dal DOM (vedi stesso fix in RouteForm.tsx e
+    // LocationAutocomplete.tsx).
+    await new Promise((resolve) => setTimeout(resolve, 0));
     setFavorites((prev) => prev.filter((f) => f.id !== id));
     await removeFavorite(id);
   }

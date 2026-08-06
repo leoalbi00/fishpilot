@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import LocationAutocomplete from "@/components/LocationAutocomplete";
+import type { LocationSuggestion } from "@/types/fishing";
 import { saveLocalRoute } from "@/lib/localRoute";
 
 interface WaypointField {
@@ -55,7 +57,13 @@ export default function RouteForm() {
   }
 
   function removeWaypoint(id: string) {
-    setWaypoints((prev) => (prev.length > 2 ? prev.filter((w) => w.id !== id) : prev));
+    // Rimandato di un tick: il bottone cliccato appartiene alla riga che sta
+    // per essere rimossa dal DOM (stesso motivo del defer in
+    // LocationAutocomplete — evita il mis-targeting dell'evento nativo
+    // successivo quando l'elemento cliccato scompare nello stesso giro).
+    setTimeout(() => {
+      setWaypoints((prev) => (prev.length > 2 ? prev.filter((w) => w.id !== id) : prev));
+    }, 0);
   }
 
   function handleGeolocate(id: string) {
@@ -179,10 +187,15 @@ export default function RouteForm() {
               </div>
             ) : (
               <div className="flex gap-2">
-                <input
-                  type="text"
+                <LocationAutocomplete
                   value={w.location}
-                  onChange={(e) => updateWaypoint(w.id, { location: e.target.value })}
+                  onChange={(text) => updateWaypoint(w.id, { location: text })}
+                  onSelect={(s: LocationSuggestion) =>
+                    updateWaypoint(w.id, {
+                      location: s.label,
+                      coords: { lat: s.latitude, lng: s.longitude },
+                    })
+                  }
                   placeholder="Es. Capri (NA)"
                   className={inputClasses}
                 />

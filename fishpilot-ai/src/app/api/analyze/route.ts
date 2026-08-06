@@ -2,7 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { analyzeTrip } from "@/lib/tripAnalysis";
 import { geocodeLocation, reverseGeocode } from "@/lib/geocode";
 import { createClient } from "@/lib/supabase/server";
-import type { FishingTechnique, GeocodedPlace } from "@/types/fishing";
+import { computeSolunar } from "@/lib/solunar";
+import { computeTide } from "@/lib/tides";
+import { computeNightForecast } from "@/lib/nightForecast";
+import type {
+  FishingTechnique,
+  GeocodedPlace,
+  NightForecastResult,
+  SpotReportResult,
+} from "@/types/fishing";
 
 const VALID_TECHNIQUES: FishingTechnique[] = [
   "traina",
@@ -78,54 +86,97 @@ export async function POST(req: NextRequest) {
       minute,
     });
 
-    // 2) Salvataggio su Supabase: trip (spot) + fishing_report (risultato)
-    const supabase = await createClient();
+    const tripDateISO = `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`;
 
-    const { data: trip, error: tripError } = await supabase
-      .from("trips")
-      .insert({
-        start_location: analysis.start.displayName,
-        destination: null,
-        technique,
-        date: `${date}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00`,
-        start_lat: analysis.start.latitude,
-        start_lng: analysis.start.longitude,
-        dest_lat: null,
-        dest_lng: null,
-      })
-      .select()
-      .single();
+    // 2) Salvataggio su Supabase: non deve mai bloccare la visualizzazione
+    // del rapporto (stesso pattern non bloccante di /api/route). Se fallisce
+    // (tabella non ancora creata, rete assente, credenziali mancanti...) si
+    // prosegue con reportId null e si calcola qui tutto ciò che la
+    // dashboard persistita calcolerebbe al render, restituendolo inline.
+    let reportId: string | null = null;
+    try {
+      const supabase = await createClient();
 
-    if (tripError || !trip) {
-      console.error("Errore inserimento trip:", tripError);
-      return NextResponse.json(
-        { error: "Errore nel salvataggio del viaggio su Supabase. Controlla di aver eseguito supabase/schema.sql e le variabili in .env.local." },
-        { status: 500 }
-      );
+      const { data: trip, error: tripError } = await supabase
+        .from("trips")
+        .insert({
+          start_location: analysis.start.displayName,
+          destination: null,
+          technique,
+          date: tripDateISO,
+          start_lat: analysis.start.latitude,
+          start_lng: analysis.start.longitude,
+          dest_lat: null,
+          dest_lng: null,
+        })
+        .select()
+        .single();
+
+      if (tripError || !trip) {
+        console.error("Salvataggio trip non riuscito, proseguo senza persistenza:", tripError);
+      } else {
+        const { data: reportRow, error: reportError } = await supabase
+          .from("fishing_reports")
+          .insert({
+            trip_id: trip.id,
+            score: analysis.primary.score,
+            species: analysis.primary.species,
+            recommendations: analysis.primary.recommendations,
+            conditions: analysis.primary.conditions,
+            zones: analysis.zones,
+          })
+          .select()
+          .single();
+
+        if (reportError || !reportRow) {
+          console.error(
+            "Salvataggio fishing_report non riuscito, proseguo senza persistenza:",
+            reportError
+          );
+        } else {
+          reportId = reportRow.id;
+        }
+      }
+    } catch (err) {
+      console.error("Supabase non raggiungibile per l'analisi, proseguo senza persistenza:", err);
     }
 
-    const { data: report, error: reportError } = await supabase
-      .from("fishing_reports")
-      .insert({
-        trip_id: trip.id,
-        score: analysis.primary.score,
-        species: analysis.primary.species,
-        recommendations: analysis.primary.recommendations,
-        conditions: analysis.primary.conditions,
-        zones: analysis.zones,
-      })
-      .select()
-      .single();
-
-    if (reportError || !report) {
-      console.error("Errore inserimento fishing_report:", reportError);
-      return NextResponse.json(
-        { error: "Errore nel salvataggio del report di pesca." },
-        { status: 500 }
-      );
+    if (reportId) {
+      return NextResponse.json({ reportId });
     }
 
-    return NextResponse.json({ reportId: report.id, tripId: trip.id });
+    const referenceDate = new Date(`${tripDateISO}Z`);
+    const solunar = computeSolunar(referenceDate, analysis.start.latitude, analysis.start.longitude);
+    const tide = computeTide(referenceDate, analysis.start.longitude);
+
+    let nightForecast: NightForecastResult;
+    try {
+      nightForecast = await computeNightForecast(date, analysis.start.latitude, analysis.start.longitude);
+    } catch {
+      nightForecast = { points: [], trend: "stabile", maxWindSpeedKmh: 0, maxWaveHeightM: 0 };
+    }
+
+    const report: SpotReportResult = {
+      persisted: false,
+      score: analysis.primary.score,
+      species: analysis.primary.species,
+      recommendations: analysis.primary.recommendations,
+      conditions: analysis.primary.conditions,
+      primaryZone: analysis.zones[Math.floor(analysis.zones.length / 2)],
+      trip: {
+        startLocation: analysis.start.displayName,
+        technique: technique as FishingTechnique,
+        date: referenceDate.toISOString(),
+        latitude: analysis.start.latitude,
+        longitude: analysis.start.longitude,
+      },
+      solunar,
+      tide,
+      nightForecast,
+      utcOffsetSeconds: analysis.primary.conditions.utcOffsetSeconds ?? 0,
+    };
+
+    return NextResponse.json({ reportId: null, report });
   } catch (err) {
     console.error("Errore /api/analyze:", err);
     const message =

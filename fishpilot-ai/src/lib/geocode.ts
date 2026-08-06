@@ -1,4 +1,4 @@
-import type { GeocodedPlace } from "@/types/fishing";
+import type { GeocodedPlace, LocationSuggestion } from "@/types/fishing";
 
 interface OpenMeteoGeocodingResult {
   name: string;
@@ -76,6 +76,65 @@ export async function geocodeLocation(raw: string): Promise<GeocodedPlace> {
     country: chosen.country,
     admin1: chosen.admin1,
   };
+}
+
+interface NominatimSearchResult {
+  place_id: number;
+  name?: string;
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
+/**
+ * Suggerimenti di autocompletamento per i campi località (partenza, arrivo,
+ * waypoint, spot): ricerca libera su Nominatim (OpenStreetMap), che copre
+ * anche porti/marine/isole oltre alle sole città. Best-effort: in caso di
+ * errore/timeout restituisce un elenco vuoto invece di far fallire l'input.
+ */
+export async function searchLocations(
+  query: string,
+  limit = 6
+): Promise<LocationSuggestion[]> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return [];
+
+  const url =
+    `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(trimmed)}` +
+    `&format=jsonv2&limit=${limit}&accept-language=it`;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6000);
+
+    const res = await fetch(url, {
+      headers: { "User-Agent": "FishPilotAI/1.0 (https://fishpilot.ai)" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) return [];
+
+    const data = (await res.json()) as NominatimSearchResult[];
+
+    return data
+      .map((r): LocationSuggestion | null => {
+        const latitude = Number(r.lat);
+        const longitude = Number(r.lon);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+        return {
+          id: String(r.place_id),
+          label: r.name || r.display_name.split(",")[0].trim(),
+          displayName: r.display_name,
+          latitude,
+          longitude,
+        };
+      })
+      .filter((s): s is LocationSuggestion => s !== null);
+  } catch {
+    return [];
+  }
 }
 
 interface NominatimReverseResult {

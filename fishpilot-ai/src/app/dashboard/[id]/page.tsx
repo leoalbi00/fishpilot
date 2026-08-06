@@ -1,30 +1,18 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
-import ScoreGauge from "@/components/ScoreGauge";
-import ConditionsCard from "@/components/ConditionsCard";
-import FavoriteButton from "@/components/FavoriteButton";
-import DashboardModeView from "@/components/DashboardModeView";
+import SpotResultsView from "@/components/SpotResultsView";
 import { createClient } from "@/lib/supabase/server";
 import { computeSolunar } from "@/lib/solunar";
 import { computeTide } from "@/lib/tides";
 import { computeNightForecast } from "@/lib/nightForecast";
-import type { NightForecastResult } from "@/types/fishing";
 import type {
   ConditionsSummary,
-  FishingTechnique,
+  NightForecastResult,
   RecommendationsResult,
   SpeciesResult,
+  SpotReportResult,
   ZonePoint,
 } from "@/types/fishing";
-
-const TECHNIQUE_LABELS: Record<string, string> = {
-  traina: "Traina",
-  bolentino: "Bolentino",
-  spinning: "Spinning",
-  jigging: "Jigging",
-  drifting: "Drifting",
-};
 
 interface FishingReportRow {
   id: string;
@@ -63,25 +51,23 @@ export default async function DashboardPage({
   // Cast esplicito: senza tipi generati da Supabase (supabase gen types),
   // l'inferenza automatica sulle relazioni annidate (trips(...)) non è
   // affidabile, quindi tipizziamo il risultato con l'interfaccia sopra.
-  const report = data as unknown as FishingReportRow | null;
+  const row = data as unknown as FishingReportRow | null;
 
-  if (!report) {
+  if (!row || !row.trips) {
     notFound();
   }
 
-  const trip = report.trips;
+  const trip = row.trips;
   // In modalità Spot c'è un solo punto (indice 0), in modalità Tratta il
   // punto medio (indice 1) rappresenta la zona di pesca principale.
-  const primaryZone = report.zones?.[Math.floor((report.zones?.length ?? 1) / 2)];
-  const utcOffsetSeconds = report.conditions.utcOffsetSeconds ?? 0;
+  const primaryZone = row.zones?.[Math.floor((row.zones?.length ?? 1) / 2)];
+  const utcOffsetSeconds = row.conditions.utcOffsetSeconds ?? 0;
 
   // Tabelle solunari e marea: pura astronomia (nessuna chiamata di rete),
   // calcolate qui a partire da data/posizione dello spot.
-  const referenceDate = trip ? new Date(trip.date) : new Date();
-  const spotLatitude = trip?.start_lat ?? primaryZone?.latitude ?? 0;
-  const spotLongitude = trip?.start_lng ?? primaryZone?.longitude ?? 0;
-  const solunar = computeSolunar(referenceDate, spotLatitude, spotLongitude);
-  const tide = computeTide(referenceDate, spotLongitude);
+  const referenceDate = new Date(trip.date);
+  const solunar = computeSolunar(referenceDate, trip.start_lat, trip.start_lng);
+  const tide = computeTide(referenceDate, trip.start_lng);
 
   // Previsione notturna: richiede rete (a differenza di solunari/maree, pura
   // astronomia); non deve mai far fallire il rendering dell'intera pagina.
@@ -89,90 +75,39 @@ export default async function DashboardPage({
   try {
     nightForecast = await computeNightForecast(
       referenceDate.toISOString().slice(0, 10),
-      spotLatitude,
-      spotLongitude
+      trip.start_lat,
+      trip.start_lng
     );
   } catch {
     nightForecast = { points: [], trend: "stabile", maxWindSpeedKmh: 0, maxWaveHeightM: 0 };
   }
 
-  const formattedDate = trip
-    ? new Date(trip.date).toLocaleString("it-IT", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : null;
+  const report: SpotReportResult = {
+    id: row.id,
+    persisted: true,
+    score: row.score,
+    species: row.species,
+    recommendations: row.recommendations,
+    conditions: row.conditions,
+    primaryZone,
+    trip: {
+      startLocation: trip.start_location,
+      technique: trip.technique as SpotReportResult["trip"]["technique"],
+      date: trip.date,
+      latitude: trip.start_lat,
+      longitude: trip.start_lng,
+    },
+    solunar,
+    tide,
+    nightForecast,
+    utcOffsetSeconds,
+  };
 
   return (
     <div className="chart-texture min-h-screen flex flex-col">
       <Navbar />
-
-      <main className="flex-1 px-6 py-10 sm:py-14 max-w-4xl mx-auto w-full space-y-8">
-        <div className="space-y-3">
-          <p className="font-mono text-xs tracking-[0.3em] text-tide uppercase">
-            Rapporto di pesca
-          </p>
-          {trip && (
-            <h1 className="font-display text-2xl sm:text-3xl text-foam font-semibold">
-              {trip.start_location}
-              {trip.destination && (
-                <>
-                  {" "}
-                  <span className="text-foam/40">→</span> {trip.destination}
-                </>
-              )}
-            </h1>
-          )}
-          {trip && (
-            <p className="text-foam/60 text-sm">
-              {TECHNIQUE_LABELS[trip.technique] ?? trip.technique} ·{" "}
-              {formattedDate}
-            </p>
-          )}
-          {trip && (
-            <FavoriteButton
-              name={trip.start_location}
-              latitude={trip.start_lat}
-              longitude={trip.start_lng}
-              technique={trip.technique as FishingTechnique}
-            />
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-8 items-start">
-          <div className="flex justify-center lg:sticky lg:top-10">
-            <ScoreGauge score={report.score} />
-          </div>
-
-          <div className="space-y-6 w-full">
-            <ConditionsCard conditions={report.conditions} zone={primaryZone} />
-
-            <DashboardModeView
-              species={report.species}
-              recommendations={report.recommendations}
-              technique={trip?.technique ?? ""}
-              primaryZone={primaryZone}
-              spotLatitude={spotLatitude}
-              spotLongitude={spotLongitude}
-              solunar={solunar}
-              tide={tide}
-              nightForecast={nightForecast}
-              utcOffsetSeconds={utcOffsetSeconds}
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-center pt-2">
-          <Link
-            href={`/map/${report.id}`}
-            className="inline-flex items-center gap-2 rounded-lg border border-tide/50 text-tide px-5 py-3 font-body text-sm hover:bg-tide/10 transition-colors"
-          >
-            Vedi la rotta sulla mappa →
-          </Link>
-        </div>
+      <main className="flex-1 px-6 py-10 sm:py-14 max-w-4xl mx-auto w-full">
+        <SpotResultsView report={report} />
       </main>
     </div>
   );

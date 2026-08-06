@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppPreferences } from "@/components/AppPreferencesProvider";
-import type { FishingTechnique } from "@/types/fishing";
+import LocationAutocomplete from "@/components/LocationAutocomplete";
+import { saveLocalReport } from "@/lib/localReport";
+import type { FishingTechnique, LocationSuggestion } from "@/types/fishing";
 
 const TECHNIQUES: { value: FishingTechnique; label: string }[] = [
   { value: "traina", label: "Traina" },
@@ -17,7 +19,10 @@ const inputClasses =
   "w-full rounded-lg bg-abyss/60 border border-hull/50 px-4 py-3 text-foam placeholder:text-foam/30 font-body focus:border-signal focus:ring-1 focus:ring-signal outline-none transition-colors";
 
 /** Form dello spot analizzato in ⚓ Rada e 🎣 Pesca (le rotte multi-waypoint
- * vivono nell'ecosistema ⛵ Traversata, vedi RouteForm). */
+ * vivono nell'ecosistema ⛵ Traversata, vedi RouteForm). La scheda "Tecnica
+ * di pesca" è visibile solo in modalità Pesca: in Rada resta comunque un
+ * valore di default silenzioso, usato solo internamente dalla pipeline di
+ * analisi (mai mostrato). */
 export default function TripForm() {
   const router = useRouter();
   const { mode } = useAppPreferences();
@@ -65,8 +70,14 @@ export default function TripForm() {
     );
   }
 
+  function handleSuggestionSelect(s: LocationSuggestion) {
+    setLocation(s.label);
+    setCoords({ lat: s.latitude, lng: s.longitude });
+  }
+
   function clearCoords() {
     setCoords(null);
+    setLocation("");
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -100,7 +111,16 @@ export default function TripForm() {
         throw new Error(data.error ?? "Analisi non riuscita.");
       }
 
-      router.push(`/dashboard/${data.reportId}`);
+      if (data.reportId) {
+        router.push(`/dashboard/${data.reportId}`);
+      } else if (data.report) {
+        // Report calcolato ma non salvato su Supabase: mostrato comunque
+        // tramite il fallback locale (vedi lib/localReport.ts).
+        saveLocalReport(data.report);
+        router.push("/dashboard/local");
+      } else {
+        throw new Error("Risposta inattesa dal server.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Errore imprevisto.");
       setLoading(false);
@@ -119,23 +139,23 @@ export default function TripForm() {
           </span>
           {coords ? (
             <div className="flex items-center justify-between rounded-lg bg-abyss/60 border border-tide/50 px-4 py-3">
-              <span className="text-tide font-mono text-sm">
-                📍 Posizione GPS acquisita ({coords.lat.toFixed(3)}, {coords.lng.toFixed(3)})
+              <span className="text-tide font-mono text-sm truncate">
+                📍 {location || `${coords.lat.toFixed(3)}, ${coords.lng.toFixed(3)}`}
               </span>
               <button
                 type="button"
                 onClick={clearCoords}
-                aria-label="Rimuovi posizione GPS"
-                className="text-foam/50 hover:text-foam text-sm ml-3"
+                aria-label="Rimuovi posizione"
+                className="text-foam/50 hover:text-foam text-sm ml-3 shrink-0"
               >
                 ✕
               </button>
             </div>
           ) : (
-            <input
-              type="text"
+            <LocationAutocomplete
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
+              onChange={setLocation}
+              onSelect={handleSuggestionSelect}
               placeholder="Es. Massa Lubrense (NA)"
               className={inputClasses}
             />
@@ -160,28 +180,30 @@ export default function TripForm() {
         )}
       </div>
 
-      <div>
-        <span className="block text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
-          Tecnica di pesca
-        </span>
-        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-          {TECHNIQUES.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setTechnique(t.value)}
-              aria-pressed={technique === t.value}
-              className={`min-h-[44px] rounded-lg px-2 py-2.5 text-sm font-body border transition-colors active:scale-[0.97] ${
-                technique === t.value
-                  ? "bg-signal text-abyss border-signal font-medium"
-                  : "border-hull/50 text-foam/70 hover:border-tide/60"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+      {mode === "pesca" && (
+        <div>
+          <span className="block text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
+            Tecnica di pesca
+          </span>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            {TECHNIQUES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTechnique(t.value)}
+                aria-pressed={technique === t.value}
+                className={`min-h-[44px] rounded-lg px-2 py-2.5 text-sm font-body border transition-colors active:scale-[0.97] ${
+                  technique === t.value
+                    ? "bg-signal text-abyss border-signal font-medium"
+                    : "border-hull/50 text-foam/70 hover:border-tide/60"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label className="block">
