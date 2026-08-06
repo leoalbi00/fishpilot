@@ -101,6 +101,23 @@ export function formatLocalTime(isoUTC: string, utcOffsetSeconds: number): strin
   });
 }
 
+/** Come formatLocalTime, ma con data e ora complete (es. "06/08/2026,
+ * 14:32"): usata per il timestamp "ultimo aggiornamento dati". Stesso
+ * trucco (shift manuale + lettura forzata come UTC) per restare
+ * deterministica sia lato server che lato client, evitando mismatch di
+ * idratazione dovuti al fuso orario della macchina. */
+export function formatLocalDateTime(isoUTC: string, utcOffsetSeconds: number): string {
+  const shifted = new Date(new Date(isoUTC).getTime() + utcOffsetSeconds * 1000);
+  return shifted.toLocaleString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
 const EARTH_RADIUS_M = 6371000;
 
 /** Distanza in metri tra due coordinate (formula dell'emisenoverso). */

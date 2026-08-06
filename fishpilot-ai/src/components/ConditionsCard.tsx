@@ -1,4 +1,5 @@
 import { degToCompass, kmhToKnots } from "@/lib/utils";
+import { weatherCodeInfo } from "@/lib/weatherIcons";
 import type { ConditionsSummary, ZonePoint } from "@/types/fishing";
 
 interface ConditionsCardProps {
@@ -36,12 +37,25 @@ export default function ConditionsCard({ conditions, zone }: ConditionsCardProps
     zone?.currentSpeedKmh !== undefined ? kmhToKnots(zone.currentSpeedKmh) : undefined;
   const currentDir =
     zone?.currentDirectionDeg !== undefined ? degToCompass(zone.currentDirectionDeg) : undefined;
+  const sky = zone?.weatherCode !== undefined ? weatherCodeInfo(zone.weatherCode) : undefined;
 
   return (
     <div className="rounded-lg border border-hull/40 bg-depth/60 p-5 space-y-4">
       <h3 className="font-display text-foam text-lg">Meteo Marino</h3>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {sky && (
+          <div className="rounded-lg border border-hull/40 bg-abyss/50 p-3.5 text-center">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-foam/45">Cielo</p>
+            <p className="font-mono text-xl text-foam mt-1 tabular-nums flex items-center justify-center gap-1.5">
+              <span aria-hidden>{sky.icon}</span>
+              <span className="text-base">{sky.label}</span>
+            </p>
+            {zone?.cloudCoverPct !== undefined && (
+              <p className="text-xs text-foam/50 mt-0.5">{Math.round(zone.cloudCoverPct)}% nuvole</p>
+            )}
+          </div>
+        )}
         <StatTile
           label="Vento"
           value={windKn !== undefined ? `${windKn.toFixed(1)} ${windDir}` : "—"}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import RouteMap from "@/components/RouteMap";
 import PassageCalendarCard from "@/components/PassageCalendarCard";
+import DataSourcesFooter from "@/components/DataSourcesFooter";
 import { useAppPreferences } from "@/components/AppPreferencesProvider";
 import { degToCompass, formatLocalTime } from "@/lib/utils";
 import { downloadGpx } from "@/lib/gpxExport";
@@ -141,6 +142,43 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
         </p>
       )}
 
+      <p className="inline-flex flex-wrap items-center gap-1.5 text-[11px] font-mono text-foam/50 bg-abyss/50 border border-hull/40 rounded-full px-3 py-1.5">
+        📡 Fonte Rotta: Searoute Nautical Network · Fonte Meteo: Open-Meteo Marine (ECMWF live)
+      </p>
+
+      <div className="space-y-3">
+        <h2 className="font-display text-foam text-lg">Scenari Meteo di Rotta</h2>
+        <p className="text-xs text-foam/50 font-body -mt-2">
+          Estratti dalle previsioni live sui waypoint della rotta.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(
+            [
+              { key: "best", label: "Caso Migliore", color: "#2dd4bf" },
+              { key: "average", label: "Media Costante", color: "#ffb238" },
+              { key: "worst", label: "Caso Peggiore", color: "#ff6b57" },
+            ] as const
+          ).map(({ key, label, color }) => {
+            const s = plan.weatherScenarios[key];
+            return (
+              <div key={key} className="rounded-lg border border-hull/40 bg-abyss/50 p-4 text-center">
+                <p className="text-[10px] font-mono uppercase tracking-widest" style={{ color }}>
+                  {label}
+                </p>
+                <p className="font-mono text-lg text-foam mt-1.5 tabular-nums">
+                  {s.windSpeedKn}
+                  <span className="text-xs text-foam/50 ml-0.5">/{s.windGustsKn} kn vento</span>
+                </p>
+                <p className="font-mono text-sm text-foam/80 mt-0.5 tabular-nums">
+                  {s.waveHeightM}
+                  <span className="text-xs text-foam/50 ml-0.5">m onda</span>
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="space-y-3">
         <h2 className="font-display text-foam text-lg">Meteo lungo la rotta</h2>
         {plan.legs.map((leg, i) => (
@@ -245,6 +283,16 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
           sempre su carta nautica aggiornata.
         </p>
       </div>
+
+      <DataSourcesFooter
+        sources={[
+          "Rotta: Searoute Nautical Network (rete marittima precalcolata, offline)",
+          "Meteo/mare lungo la rotta: Open-Meteo Marine + Forecast API (ECMWF live)",
+          "Porti di rifugio e calendario traversata: OpenStreetMap (Overpass API) + Open-Meteo",
+        ]}
+        generatedAtISO={plan.generatedAtISO}
+        utcOffsetSeconds={utcOffsetSeconds}
+      />
     </div>
   );
 }

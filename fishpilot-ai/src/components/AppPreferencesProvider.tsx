@@ -20,7 +20,7 @@ const PreferencesContext = createContext<PreferencesContextValue | null>(null);
  * Navbar e Dashboard senza ricaricare la pagina. */
 export function AppPreferencesProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<AppMode>("pesca");
-  const [theme, setThemeState] = useState<ThemeMode>("day");
+  const [theme, setThemeState] = useState<ThemeMode>("light");
 
   useEffect(() => {
     const storedMode = window.localStorage.getItem(MODE_KEY);

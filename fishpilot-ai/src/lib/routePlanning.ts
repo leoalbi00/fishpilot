@@ -17,6 +17,7 @@ import type {
   RelativeWindSector,
   RouteLeg,
   RoutePlan,
+  RouteWeatherScenarios,
 } from "@/types/fishing";
 
 const METERS_PER_NM = 1852;
@@ -46,6 +47,42 @@ function initialBearingDeg(
 /** Normalizza un angolo in gradi nell'intervallo (-180, 180]. */
 function normalizeSigned180(deg: number): number {
   return (((deg + 180) % 360) + 360) % 360 - 180;
+}
+
+/** Estrae i tre scenari meteo di rotta (peggiore/migliore/media) dalle
+ * previsioni live già calcolate su ciascun leg — nessuna chiamata di rete
+ * aggiuntiva. Esportata per essere ricalcolata anche in lettura sui piani
+ * persistiti (stesso pattern di NightForecast/PassageCalendar). */
+export function computeWeatherScenarios(legs: RouteLeg[]): RouteWeatherScenarios {
+  const zero = { windSpeedKn: 0, windGustsKn: 0, waveHeightM: 0 };
+  if (legs.length === 0) {
+    return { worst: zero, best: zero, average: zero };
+  }
+
+  const avg = (values: number[]) =>
+    Math.round((values.reduce((sum, v) => sum + v, 0) / values.length) * 10) / 10;
+
+  const windSpeeds = legs.map((l) => l.windSpeedKn);
+  const windGusts = legs.map((l) => l.windGustsKn);
+  const waveHeights = legs.map((l) => l.waveHeightM);
+
+  return {
+    worst: {
+      windSpeedKn: Math.max(...windSpeeds),
+      windGustsKn: Math.max(...windGusts),
+      waveHeightM: Math.round(Math.max(...waveHeights) * 10) / 10,
+    },
+    best: {
+      windSpeedKn: Math.min(...windSpeeds),
+      windGustsKn: Math.min(...windGusts),
+      waveHeightM: Math.round(Math.min(...waveHeights) * 10) / 10,
+    },
+    average: {
+      windSpeedKn: avg(windSpeeds),
+      windGustsKn: avg(windGusts),
+      waveHeightM: avg(waveHeights),
+    },
+  };
 }
 
 function relativeWindSector(angleAbsDeg: number): RelativeWindSector {
@@ -234,5 +271,6 @@ export async function planRoute(input: RoutePlanningInput): Promise<RoutePlan> {
     departureISO: new Date(departureUtcMs).toISOString(),
     etaFinalISO: new Date(departureUtcMs + cumulativeHours * 3600000).toISOString(),
     utcOffsetSeconds,
+    weatherScenarios: computeWeatherScenarios(legs),
   };
 }

@@ -8,6 +8,7 @@ import ScoreGauge from "@/components/ScoreGauge";
 import ConditionsCard from "@/components/ConditionsCard";
 import FavoriteButton from "@/components/FavoriteButton";
 import ShelterCard from "@/components/ShelterCard";
+import BayDiscoveryCard from "@/components/BayDiscoveryCard";
 import SeabedCard from "@/components/SeabedCard";
 import AnchorWatch from "@/components/AnchorWatch";
 import NightForecastCard from "@/components/NightForecastCard";
@@ -16,6 +17,7 @@ import RecommendationsCard from "@/components/RecommendationsCard";
 import SolunarCard from "@/components/SolunarCard";
 import TideChart from "@/components/TideChart";
 import AtAnchorTechniquesCard from "@/components/AtAnchorTechniquesCard";
+import DataSourcesFooter from "@/components/DataSourcesFooter";
 import type { SpotReportResult } from "@/types/fishing";
 
 const TECHNIQUE_LABELS: Record<string, string> = {
@@ -155,6 +157,7 @@ export default function SpotResultsView({ report }: { report: SpotReportResult }
           )}
 
           <SeabedCard latitude={report.trip.latitude} longitude={report.trip.longitude} />
+          <BayDiscoveryCard bays={report.nearbyBays} />
           <NightForecastCard forecast={report.nightForecast} utcOffsetSeconds={report.utcOffsetSeconds} />
           <AnchorWatch />
         </div>
@@ -169,6 +172,25 @@ export default function SpotResultsView({ report }: { report: SpotReportResult }
             Vedi la rotta sulla mappa →
           </Link>
         </div>
+      )}
+
+      {mode !== "traversata" && (
+        <DataSourcesFooter
+          sources={
+            mode === "rada"
+              ? [
+                  "Baie/spiagge vicine: OpenStreetMap (Overpass API)",
+                  "Meteo/mare: Open-Meteo Forecast + Marine API (ECMWF/ICON-EU live)",
+                  "Fondale: EMODnet Geology (stima automatica, beta)",
+                ]
+              : [
+                  "Meteo/mare: Open-Meteo Forecast + Marine API (ECMWF/ICON-EU live)",
+                  "Fishing Score, specie e tecniche: algoritmo interno FishPilot (euristica)",
+                ]
+          }
+          generatedAtISO={report.generatedAtISO}
+          utcOffsetSeconds={report.utcOffsetSeconds}
+        />
       )}
     </div>
   );

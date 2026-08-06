@@ -116,6 +116,8 @@ export async function analyzeTrip(
         windDirectionDeg: weather.windDirectionDeg,
         currentSpeedKmh: marine.currentSpeedKmh,
         currentDirectionDeg: marine.currentDirectionDeg,
+        weatherCode: weather.weatherCode,
+        cloudCoverPct: weather.cloudCoverPct,
       };
 
       return { zone, result, time, utcOffsetSeconds: weather.utcOffsetSeconds };

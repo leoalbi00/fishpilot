@@ -4,9 +4,9 @@ import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import { AppPreferencesProvider } from "@/components/AppPreferencesProvider";
 import "./globals.css";
 
-// Applica il tema salvato (Sole Alto/Notte) PRIMA dell'idratazione React,
-// per evitare un flash del tema Giorno di default.
-const THEME_INIT_SCRIPT = `try{var t=localStorage.getItem("fishpilot_theme");if(t==="night"||t==="sunhigh")document.documentElement.setAttribute("data-theme",t);}catch(e){}`;
+// Applica il tema salvato (o il default Chiaro) PRIMA dell'idratazione
+// React, per evitare un flash del tema sbagliato al primo caricamento.
+const THEME_INIT_SCRIPT = `try{var t=localStorage.getItem("fishpilot_theme");if(t!=="night"&&t!=="sunhigh"&&t!=="day"&&t!=="light")t="light";document.documentElement.setAttribute("data-theme",t);}catch(e){document.documentElement.setAttribute("data-theme","light");}`;
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#061620",
+  themeColor: "#f7fafc",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

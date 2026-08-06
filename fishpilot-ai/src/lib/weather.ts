@@ -37,6 +37,8 @@ export interface RawWeatherPoint {
   airTempC: number;
   sunrise: string;
   sunset: string;
+  /** Codice meteo WMO (0-99): vedi lib/weatherIcons.ts per l'icona/etichetta. */
+  weatherCode: number;
 }
 
 export interface MarineSeries {
@@ -57,6 +59,7 @@ export interface WeatherSeries {
   cloudCoverPct: number[];
   pressureHpa: number[];
   airTempC: number[];
+  weatherCode: number[];
   sunrise: string;
   sunset: string;
   utcOffsetSeconds: number;
@@ -132,7 +135,7 @@ export async function fetchWeatherSeries(
 ): Promise<WeatherSeries> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
-    `&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,surface_pressure,temperature_2m` +
+    `&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m,cloud_cover,surface_pressure,temperature_2m,weather_code` +
     `&daily=sunrise,sunset` +
     `&start_date=${startDateISO}&end_date=${endDateISO}&timezone=auto`;
 
@@ -158,6 +161,7 @@ export async function fetchWeatherSeries(
     cloudCoverPct: data.hourly.cloud_cover ?? [],
     pressureHpa: data.hourly.surface_pressure ?? [],
     airTempC: data.hourly.temperature_2m ?? [],
+    weatherCode: data.hourly.weather_code ?? [],
     sunrise: data.daily?.sunrise?.[0] ?? `${startDateISO}T06:30`,
     sunset: data.daily?.sunset?.[0] ?? `${startDateISO}T20:00`,
     utcOffsetSeconds: data.utc_offset_seconds ?? 0,
@@ -204,6 +208,7 @@ export async function fetchWeatherConditions(
     cloudCoverPct: series.cloudCoverPct[idx] ?? 0,
     pressureHpa: series.pressureHpa[idx] ?? 1013,
     airTempC: series.airTempC[idx] ?? 20,
+    weatherCode: series.weatherCode[idx] ?? 0,
     sunrise: series.sunrise,
     sunset: series.sunset,
   };

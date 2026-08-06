@@ -5,8 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { computeSolunar } from "@/lib/solunar";
 import { computeTide } from "@/lib/tides";
 import { computeNightForecast } from "@/lib/nightForecast";
+import { findNearbyBays } from "@/lib/bayDiscovery";
 import type {
   ConditionsSummary,
+  DiscoveredBay,
   NightForecastResult,
   RecommendationsResult,
   SpeciesResult,
@@ -91,6 +93,17 @@ export default async function DashboardPage({
     };
   }
 
+  // Auto-discovery baie/spiagge (Rada): mai bloccante, findNearbyBays
+  // gestisce già internamente ogni errore restituendo un elenco vuoto.
+  const nearbyBays: DiscoveredBay[] = primaryZone
+    ? await findNearbyBays(trip.start_lat, trip.start_lng, {
+        windDirectionDeg: primaryZone.windDirectionDeg,
+        windSpeedKmh: primaryZone.windSpeedKmh,
+        waveDirectionDeg: primaryZone.waveDirectionDeg,
+        waveHeightM: primaryZone.waveHeightM,
+      })
+    : [];
+
   const report: SpotReportResult = {
     id: row.id,
     persisted: true,
@@ -109,7 +122,9 @@ export default async function DashboardPage({
     solunar,
     tide,
     nightForecast,
+    nearbyBays,
     utcOffsetSeconds,
+    generatedAtISO: new Date().toISOString(),
   };
 
   return (

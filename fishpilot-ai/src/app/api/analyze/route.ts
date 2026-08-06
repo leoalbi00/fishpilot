@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { computeSolunar } from "@/lib/solunar";
 import { computeTide } from "@/lib/tides";
 import { computeNightForecast } from "@/lib/nightForecast";
+import { findNearbyBays } from "@/lib/bayDiscovery";
 import type {
+  DiscoveredBay,
   FishingTechnique,
   GeocodedPlace,
   NightForecastResult,
@@ -168,15 +170,30 @@ export async function POST(req: NextRequest) {
       };
     }
 
+    // Il punto primario è il centro/spot singolo (indice 0), tranne in
+    // modalità Tratta (3 zone: partenza/metà/arrivo) dove è il punto medio.
+    const primaryZone = analysis.zones[analysis.zones.length === 3 ? 1 : 0];
+
+    // Auto-discovery baie/spiagge (Rada): mai bloccante, findNearbyBays
+    // gestisce già internamente ogni errore restituendo un elenco vuoto.
+    const nearbyBays: DiscoveredBay[] = await findNearbyBays(
+      analysis.start.latitude,
+      analysis.start.longitude,
+      {
+        windDirectionDeg: primaryZone.windDirectionDeg,
+        windSpeedKmh: primaryZone.windSpeedKmh,
+        waveDirectionDeg: primaryZone.waveDirectionDeg,
+        waveHeightM: primaryZone.waveHeightM,
+      }
+    );
+
     const report: SpotReportResult = {
       persisted: false,
       score: analysis.primary.score,
       species: analysis.primary.species,
       recommendations: analysis.primary.recommendations,
       conditions: analysis.primary.conditions,
-      // Il punto primario è il centro/spot singolo (indice 0), tranne in
-      // modalità Tratta (3 zone: partenza/metà/arrivo) dove è il punto medio.
-      primaryZone: analysis.zones[analysis.zones.length === 3 ? 1 : 0],
+      primaryZone,
       trip: {
         startLocation: analysis.start.displayName,
         technique: technique as FishingTechnique,
@@ -187,7 +204,9 @@ export async function POST(req: NextRequest) {
       solunar,
       tide,
       nightForecast,
+      nearbyBays,
       utcOffsetSeconds: analysis.primary.conditions.utcOffsetSeconds ?? 0,
+      generatedAtISO: new Date().toISOString(),
     };
 
     return NextResponse.json({ reportId: null, report });

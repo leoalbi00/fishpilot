@@ -188,6 +188,11 @@ export interface ZonePoint {
   /** Corrente marina: non sempre disponibile per ogni zona (dato Open-Meteo). */
   currentSpeedKmh?: number;
   currentDirectionDeg?: number;
+  /** Codice meteo WMO (0-99, Open-Meteo) e copertura nuvolosa: assenti sui
+   * report persistiti prima dell'introduzione di questi campi. Vedi
+   * lib/weatherIcons.ts per l'icona/etichetta del codice. */
+  weatherCode?: number;
+  cloudCoverPct?: number;
 }
 
 /** Spot salvato tra i preferiti dall'utente (persistito su Supabase e/o localStorage). */
@@ -241,6 +246,23 @@ export interface RouteLeg {
   isSeaRouted?: boolean;
 }
 
+/** Condizioni sintetiche di uno scenario meteo di rotta (vedi RouteWeatherScenarios). */
+export interface RouteWeatherScenario {
+  windSpeedKn: number;
+  windGustsKn: number;
+  waveHeightM: number;
+}
+
+/** Tre scenari meteo estratti dalle previsioni live sui waypoint della
+ * rotta (vedi lib/routePlanning.ts, computeWeatherScenarios): il caso
+ * peggiore e migliore incontrati lungo i leg, e la media prevista per
+ * l'intero viaggio. */
+export interface RouteWeatherScenarios {
+  worst: RouteWeatherScenario;
+  best: RouteWeatherScenario;
+  average: RouteWeatherScenario;
+}
+
 export interface RoutePlan {
   waypoints: RouteWaypoint[];
   legs: RouteLeg[];
@@ -252,6 +274,7 @@ export interface RoutePlan {
   departureISO: string;
   etaFinalISO: string;
   utcOffsetSeconds: number;
+  weatherScenarios: RouteWeatherScenarios;
 }
 
 /** Porto/marina di rifugio nei pressi della rotta (fonte: OpenStreetMap). */
@@ -299,6 +322,9 @@ export interface RoutePlanResult extends RoutePlan {
   /** Assente se il calcolo non è riuscito (rete/dati non disponibili): il
    * chiamante deve gestire il caso undefined, mai bloccare la pagina. */
   passageCalendar?: PassageCalendarResult;
+  /** Istante (ISO, UTC) in cui questo piano è stato calcolato/ricalcolato:
+   * mostrato nel box "Fonti Dati Ufficiali" come "ultimo aggiornamento". */
+  generatedAtISO: string;
 }
 
 // ============================================================
@@ -322,6 +348,25 @@ export interface NightForecastResult {
    * di severità già usate per il colore dei punti in NightForecastCard). */
   stormWarning: boolean;
   stormReasons: string[];
+}
+
+// ============================================================
+// ⚓ Auto-discovery Baie & Spiagge (Rada)
+// ============================================================
+
+/** Baia/cala/spiaggia trovata automaticamente via Overpass (OSM) nel
+ * raggio dello spot, con Shelter Score già calcolato: vedi lib/bayDiscovery.ts. */
+export interface DiscoveredBay {
+  name: string;
+  type: "baia" | "spiaggia";
+  latitude: number;
+  longitude: number;
+  distanceM: number;
+  shelterScorePct: number;
+  shelterLabel: string;
+  /** false se la geometria OSM non permetteva di stimare l'imbocco: il
+   * punteggio si basa solo sull'intensità di vento/mare (vedi lib/anchorage.ts). */
+  exposureKnown: boolean;
 }
 
 // ============================================================
@@ -354,5 +399,12 @@ export interface SpotReportResult {
   solunar: SolunarResult;
   tide: TideResult;
   nightForecast: NightForecastResult;
+  /** Baie/spiagge trovate automaticamente nel raggio dello spot (Rada): vedi
+   * lib/bayDiscovery.ts. Sempre calcolato (anche in modalità Pesca) per
+   * permettere il cambio modalità sulla stessa pagina senza ricalcolo. */
+  nearbyBays: DiscoveredBay[];
   utcOffsetSeconds: number;
+  /** Istante (ISO, UTC) in cui questo rapporto è stato calcolato/ricalcolato:
+   * mostrato nel box "Fonti Dati Ufficiali" come "ultimo aggiornamento". */
+  generatedAtISO: string;
 }

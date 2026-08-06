@@ -3,6 +3,7 @@ import Navbar from "@/components/Navbar";
 import RouteResultsView from "@/components/RouteResultsView";
 import { createClient } from "@/lib/supabase/server";
 import { computePassageCalendar } from "@/lib/passageCalendar";
+import { computeWeatherScenarios } from "@/lib/routePlanning";
 import type {
   PassageCalendarResult,
   RefugePort,
@@ -67,6 +68,8 @@ export default async function TraversataPage({
     utcOffsetSeconds: route.utc_offset_seconds ?? 0,
     persisted: true,
     passageCalendar,
+    weatherScenarios: computeWeatherScenarios(route.legs),
+    generatedAtISO: new Date().toISOString(),
   };
 
   return (

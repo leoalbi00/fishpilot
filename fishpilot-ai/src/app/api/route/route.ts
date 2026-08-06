@@ -136,6 +136,7 @@ export async function POST(req: NextRequest) {
       refugePorts,
       persisted: routeId !== null,
       passageCalendar,
+      generatedAtISO: new Date().toISOString(),
     };
 
     return NextResponse.json({ routeId, plan: result });
