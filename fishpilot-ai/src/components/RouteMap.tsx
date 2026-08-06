@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { RefugePort, RouteLeg, RouteWaypoint } from "@/types/fishing";
@@ -12,6 +12,8 @@ interface RouteMapProps {
    * mare stimata) invece della linea diretta tra i waypoint, ove disponibile. */
   legs?: RouteLeg[];
 }
+
+const SEAMARK_ID = "route-seamark";
 
 /** Costruisce la linea da disegnare: usa il percorso via mare stimato per
  * ogni leg che lo ha (searoute-js), altrimenti la linea diretta waypoint→waypoint. */
@@ -42,6 +44,11 @@ function buildRouteCoordinates(
 export default function RouteMap({ waypoints, refugePorts = [], legs = [] }: RouteMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const [showSeamark, setShowSeamark] = useState(true);
+  // Lo stile della mappa si carica in modo asincrono: cambiare la
+  // visibilità di un layer prima che sia pronto lancia un errore MapLibre
+  // "Style is not done loading." (stesso fix già applicato a MapPicker/CopernicusMap).
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current || waypoints.length === 0) return;
@@ -60,6 +67,16 @@ export default function RouteMap({ waypoints, refugePorts = [], legs = [] }: Rou
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
     map.on("load", () => {
+      // Segnalamenti nautici (OpenSeaMap): boe, fari, pericoli e secche,
+      // sotto la linea di rotta.
+      map.addSource(SEAMARK_ID, {
+        type: "raster",
+        tiles: ["https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png"],
+        tileSize: 256,
+        attribution: "OpenSeaMap",
+      });
+      map.addLayer({ id: SEAMARK_ID, type: "raster", source: SEAMARK_ID });
+
       map.addSource("route", {
         type: "geojson",
         data: {
@@ -72,16 +89,33 @@ export default function RouteMap({ waypoints, refugePorts = [], legs = [] }: Rou
         },
       });
 
+      // Stile "linea di rotta" da carta nautica: una calzatura blu piena
+      // sotto, un tratteggio oro ad alta visibilità sopra.
+      map.addLayer({
+        id: "route-line-casing",
+        type: "line",
+        source: "route",
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#1e5fb0",
+          "line-width": 5,
+          "line-opacity": 0.55,
+        },
+      });
       map.addLayer({
         id: "route-line",
         type: "line",
         source: "route",
+        layout: { "line-cap": "butt", "line-join": "round" },
         paint: {
           "line-color": "#ffb238",
           "line-width": 3,
-          "line-opacity": 0.9,
+          "line-opacity": 0.95,
+          "line-dasharray": [2, 1.5],
         },
       });
+
+      setMapReady(true);
 
       waypoints.forEach((w, i) => {
         const el = document.createElement("div");
@@ -137,13 +171,30 @@ export default function RouteMap({ waypoints, refugePorts = [], legs = [] }: Rou
     return () => {
       map.remove();
       mapRef.current = null;
+      setMapReady(false);
     };
   }, [waypoints, refugePorts, legs]);
 
+  useEffect(() => {
+    if (!mapReady) return;
+    mapRef.current?.setLayoutProperty(SEAMARK_ID, "visibility", showSeamark ? "visible" : "none");
+  }, [showSeamark, mapReady]);
+
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full min-h-[420px] rounded-xl overflow-hidden border border-hull/40"
-    />
+    <div className="space-y-2">
+      <label className="flex items-center gap-1.5 text-xs font-body text-foam/60 cursor-pointer w-fit">
+        <input
+          type="checkbox"
+          checked={showSeamark}
+          onChange={(e) => setShowSeamark(e.target.checked)}
+          className="accent-tide"
+        />
+        Segnalamenti nautici (OpenSeaMap)
+      </label>
+      <div
+        ref={containerRef}
+        className="w-full h-[420px] rounded-xl overflow-hidden border border-hull/40"
+      />
+    </div>
   );
 }

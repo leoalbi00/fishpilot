@@ -297,6 +297,7 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
           "Rotta: Searoute Nautical Network (rete marittima precalcolata, offline)",
           "Meteo/mare lungo la rotta: Open-Meteo Marine + Forecast API (ECMWF live)",
           "Porti di rifugio e calendario traversata: OpenStreetMap (Overpass API) + Open-Meteo",
+          "Segnalamenti nautici sulla mappa: OpenSeaMap",
         ]}
         generatedAtISO={plan.generatedAtISO}
         utcOffsetSeconds={utcOffsetSeconds}

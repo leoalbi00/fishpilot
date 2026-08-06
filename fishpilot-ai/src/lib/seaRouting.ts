@@ -80,12 +80,17 @@ function toLngLat(p: { latitude: number; longitude: number }): [number, number] 
   return [p.longitude, p.latitude];
 }
 
-/** Vertice più vicino a `target` tra quelli della rete marittima entro
- * `maxDistanceKm` (non solo quelli della linea più vicina, a differenza
- * dello snap integrato in searoute-js): opzionalmente esclude un vertice
- * esatto già assegnato all'altro estremo della rotta, per evitare che
- * origine e destinazione collidano sullo stesso nodo. */
-function nearestNetworkVertex(
+/** Snap-to-Sea: sposta un punto (che spesso ha coordinate su una banchina/
+ * terraferma — un porto cliccato sulla mappa, un ormeggio in fondo a una
+ * baia stretta) sul nodo navigabile più vicino della rete marittima, entro
+ * `maxDistanceKm` (cercando su tutta la rete, non solo sulla linea più
+ * vicina come lo snap integrato in searoute-js — la causa della collisione
+ * origine/destinazione risolta più sotto). Opzionalmente esclude un
+ * vertice esatto già assegnato all'altro estremo della rotta, per evitare
+ * che origine e destinazione collidano sullo stesso nodo. Ritorna
+ * [lng, lat] del punto in acqua navigabile più vicino, o null se la rete
+ * non copre la zona entro il raggio indicato. */
+export function snapToSea(
   target: [number, number],
   maxDistanceKm: number,
   exclude?: [number, number]
@@ -133,16 +138,16 @@ export function computeSeaRoute(
     // tratte molto brevi.
     const searchRadiusKm = Math.max(haversineNm * 1.852 * 4, 90);
 
-    const originVertex = nearestNetworkVertex(fromLngLat, searchRadiusKm);
+    const originVertex = snapToSea(fromLngLat, searchRadiusKm);
     if (!originVertex) return null;
 
-    let destVertex = nearestNetworkVertex(toLngLatCoord, searchRadiusKm);
+    let destVertex = snapToSea(toLngLatCoord, searchRadiusKm);
     if (!destVertex) return null;
 
     // Stesso nodo per origine e destinazione (tipico per tratte brevi
     // ravvicinate): riprova escludendolo, per garantire due estremi distinti.
     if (destVertex[0] === originVertex[0] && destVertex[1] === originVertex[1]) {
-      destVertex = nearestNetworkVertex(toLngLatCoord, searchRadiusKm, originVertex);
+      destVertex = snapToSea(toLngLatCoord, searchRadiusKm, originVertex);
       if (!destVertex) return null;
     }
 
