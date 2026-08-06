@@ -217,9 +217,66 @@ create policy "Anyone can read route plans (MVP)"
   using (true);
 
 -- ============================================================
+-- 6. LOGBOOK_ENTRIES
+-- Ecosistema "Copernicus & Log": diario di bordo digitalizzato. Stesso
+-- schema di ownership anonima di favorite_spots (device_id generato lato
+-- client, nessun login nell'MVP). gps_track/photo_urls/weather_snapshot
+-- sono jsonb: stessa scelta di "colonna ricca" già usata altrove.
+-- ============================================================
+create table if not exists public.logbook_entries (
+  id uuid primary key default gen_random_uuid(),
+  device_id text not null,
+  title text not null,
+  date timestamptz not null,
+  start_location text not null,
+  start_lat double precision not null,
+  start_lng double precision not null,
+  notes text,
+  fuel_liters double precision,
+  gps_track jsonb not null default '[]'::jsonb,
+  photo_urls jsonb not null default '[]'::jsonb,
+  weather_snapshot jsonb,
+  created_at timestamptz not null default now()
+);
+
+alter table public.logbook_entries enable row level security;
+
+drop policy if exists "Anyone can insert logbook entries (MVP)" on public.logbook_entries;
+create policy "Anyone can insert logbook entries (MVP)"
+  on public.logbook_entries for insert
+  with check (true);
+
+drop policy if exists "Anyone can read logbook entries (MVP)" on public.logbook_entries;
+create policy "Anyone can read logbook entries (MVP)"
+  on public.logbook_entries for select
+  using (true);
+
+drop policy if exists "Anyone can delete logbook entries (MVP)" on public.logbook_entries;
+create policy "Anyone can delete logbook entries (MVP)"
+  on public.logbook_entries for delete
+  using (true);
+
+-- Storage: bucket pubblico per le foto delle catture/uscite, upload diretto
+-- dal browser via client Supabase (stessa policy MVP-aperta delle tabelle).
+insert into storage.buckets (id, name, public)
+values ('logbook-photos', 'logbook-photos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Anyone can upload logbook photos (MVP)" on storage.objects;
+create policy "Anyone can upload logbook photos (MVP)"
+  on storage.objects for insert
+  with check (bucket_id = 'logbook-photos');
+
+drop policy if exists "Anyone can read logbook photos (MVP)" on storage.objects;
+create policy "Anyone can read logbook photos (MVP)"
+  on storage.objects for select
+  using (bucket_id = 'logbook-photos');
+
+-- ============================================================
 -- Indici utili
 -- ============================================================
 create index if not exists trips_user_id_idx on public.trips (user_id);
 create index if not exists fishing_reports_trip_id_idx on public.fishing_reports (trip_id);
 create index if not exists favorite_spots_device_id_idx on public.favorite_spots (device_id);
 create index if not exists route_plans_user_id_idx on public.route_plans (user_id);
+create index if not exists logbook_entries_device_id_idx on public.logbook_entries (device_id);

@@ -4,14 +4,23 @@ import { useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { colorForScore } from "@/lib/utils";
-import type { ZonePoint } from "@/types/fishing";
+import type { SeamarkFeature, ZonePoint } from "@/types/fishing";
 
 interface FishingMapProps {
   /** Punti campionati lungo la rotta, in ordine: partenza -> metà -> destinazione. */
   zones: ZonePoint[];
+  /** Secche/scogli/relitti/ostruzioni censiti (OSM) nel raggio della zona: vedi lib/seamarkFeatures.ts. */
+  hazards?: SeamarkFeature[];
 }
 
-export default function FishingMap({ zones }: FishingMapProps) {
+const HAZARD_ICON: Record<SeamarkFeature["type"], string> = {
+  relitto: "☠️",
+  scoglio: "🪨",
+  ostruzione: "⚠️",
+  secca: "🔺",
+};
+
+export default function FishingMap({ zones, hazards = [] }: FishingMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
 
@@ -94,6 +103,30 @@ export default function FishingMap({ zones }: FishingMapProps) {
           .addTo(map);
       });
 
+      // Secche/scogli/relitti/ostruzioni (OSM): un marker piccolo con
+      // etichetta a icona per tipo, popup col nome/distanza.
+      hazards.forEach((hazard) => {
+        const el = document.createElement("div");
+        el.style.fontSize = "16px";
+        el.style.lineHeight = "1";
+        el.style.cursor = "pointer";
+        el.textContent = HAZARD_ICON[hazard.type];
+
+        const popupHtml = `
+          <div style="font-family: 'Work Sans', sans-serif; min-width: 140px;">
+            <strong style="display:block; margin-bottom:4px;">${hazard.name}</strong>
+            <span style="font-family: monospace; font-size: 12px; opacity:0.75;">
+              ${(hazard.distanceM / 1000).toFixed(1)} km dalla zona
+            </span>
+          </div>
+        `;
+
+        new maplibregl.Marker({ element: el })
+          .setLngLat([hazard.longitude, hazard.latitude])
+          .setPopup(new maplibregl.Popup({ offset: 12 }).setHTML(popupHtml))
+          .addTo(map);
+      });
+
       // Adatta lo zoom per includere tutti i punti della rotta.
       const bounds = zones.reduce(
         (b, z) => b.extend([z.longitude, z.latitude]),
@@ -109,7 +142,7 @@ export default function FishingMap({ zones }: FishingMapProps) {
       map.remove();
       mapRef.current = null;
     };
-  }, [zones]);
+  }, [zones, hazards]);
 
   return (
     <div

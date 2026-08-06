@@ -351,6 +351,56 @@ export interface NightForecastResult {
 }
 
 // ============================================================
+// 📊 Copernicus & Logbook
+// ============================================================
+
+export interface LogbookTrackPoint {
+  lat: number;
+  lng: number;
+  timestampISO: string;
+}
+
+/** Istantanea meteo-mare al momento del salvataggio dell'uscita (Open-Meteo). */
+export interface LogbookWeatherSnapshot {
+  windSpeedKmh: number;
+  windDirectionDeg: number;
+  waveHeightM: number;
+  airTempC: number;
+  seaSurfaceTempC: number;
+}
+
+/** Voce del Diario di Bordo digitalizzato: vedi lib/logbook.ts. */
+export interface LogbookEntry {
+  id: string;
+  title: string;
+  dateISO: string;
+  startLocation: string;
+  latitude: number;
+  longitude: number;
+  notes?: string;
+  fuelLiters?: number;
+  gpsTrack: LogbookTrackPoint[];
+  photoUrls: string[];
+  weatherSnapshot?: LogbookWeatherSnapshot;
+  createdAtISO: string;
+}
+
+// ============================================================
+// 🎣 Secche, Scogli & Relitti (Pesca)
+// ============================================================
+
+/** Punto di interesse per la pesca trovato via Overpass (OSM, tag
+ * seamark:type o natural=reef) nel raggio della zona analizzata: vedi
+ * lib/seamarkFeatures.ts. */
+export interface SeamarkFeature {
+  name: string;
+  type: "relitto" | "scoglio" | "ostruzione" | "secca";
+  latitude: number;
+  longitude: number;
+  distanceM: number;
+}
+
+// ============================================================
 // ⚓ Auto-discovery Baie & Spiagge (Rada)
 // ============================================================
 

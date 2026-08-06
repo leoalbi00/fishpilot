@@ -181,11 +181,12 @@ export default function SpotResultsView({ report }: { report: SpotReportResult }
               ? [
                   "Baie/spiagge vicine: OpenStreetMap (Overpass API)",
                   "Meteo/mare: Open-Meteo Forecast + Marine API (ECMWF/ICON-EU live)",
-                  "Fondale: EMODnet Geology (stima automatica, beta)",
+                  "Fondale e mappa substrato (sabbia/roccia/posidonia): EMODnet Geology (beta)",
                 ]
               : [
                   "Meteo/mare: Open-Meteo Forecast + Marine API (ECMWF/ICON-EU live)",
                   "Fishing Score, specie e tecniche: algoritmo interno FishPilot (euristica)",
+                  "Secche/scogli/relitti (mappa): OpenStreetMap (Overpass API)",
                 ]
           }
           generatedAtISO={report.generatedAtISO}

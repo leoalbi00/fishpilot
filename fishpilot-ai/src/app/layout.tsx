@@ -63,6 +63,11 @@ export default function RootLayout({
     <html
       lang="it"
       className={`${spaceGrotesk.variable} ${workSans.variable} ${jetbrainsMono.variable}`}
+      // data-theme è impostato da THEME_INIT_SCRIPT (sotto) PRIMA
+      // dell'idratazione, apposta per evitare il flash del tema sbagliato:
+      // React non lo vede mai nel proprio render, quindi lo segnalerebbe
+      // come mismatch senza questo flag (comportamento voluto, non un bug).
+      suppressHydrationWarning
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

@@ -14,6 +14,7 @@ export interface MapPickerProps {
 const SEAMARK_ID = "seamark";
 const BATHY_ID = "bathy";
 const MPA_ID = "mpa";
+const SUBSTRATE_ID = "substrate";
 const CIRCLE_SOURCE_ID = "pick-radius";
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -40,9 +41,10 @@ function circleGeoJSON(
 
 /** Mappa interattiva per selezionare uno spot (click o trascinamento del
  * marker) invece della sola ricerca testuale/GPS. Layer opzionali:
- * segnalamenti nautici (OpenSeaMap, stabile), batimetria e Aree Marine
- * Protette (EMODnet WMS, "beta": servizi esterni best-effort, la mappa
- * degrada semplicemente mostrando tile vuote se non disponibili). */
+ * segnalamenti nautici (OpenSeaMap, stabile), batimetria, Aree Marine
+ * Protette e substrato del fondale — sabbia/roccia/posidonia (EMODnet WMS,
+ * "beta": servizi esterni best-effort, la mappa degrada semplicemente
+ * mostrando tile vuote se non disponibili). */
 export default function MapPicker({ initialCenter, radiusM, onPick }: MapPickerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -52,6 +54,7 @@ export default function MapPicker({ initialCenter, radiusM, onPick }: MapPickerP
   const [showSeamark, setShowSeamark] = useState(true);
   const [showBathy, setShowBathy] = useState(false);
   const [showMpa, setShowMpa] = useState(false);
+  const [showSubstrate, setShowSubstrate] = useState(false);
   // Lo stile della mappa si carica in modo asincrono: cambiare la visibilità
   // di un layer prima che sia pronto (map.on("load")) lancia un errore
   // "Style is not done loading." Gli effetti sotto restano in attesa.
@@ -146,6 +149,22 @@ export default function MapPicker({ initialCenter, radiusM, onPick }: MapPickerP
         layout: { visibility: "none" },
       });
 
+      map.addSource(SUBSTRATE_ID, {
+        type: "raster",
+        tiles: [
+          "https://drive.emodnet-geology.eu/geoserver/seabed_substrate/wms?service=WMS&version=1.3.0&request=GetMap&layers=seabed_substrate:seabed_substrate_250k&styles=&format=image/png&transparent=true&width=256&height=256&crs=EPSG:3857&bbox={bbox-epsg-3857}",
+        ],
+        tileSize: 256,
+        attribution: "EMODnet Geology",
+      });
+      map.addLayer({
+        id: SUBSTRATE_ID,
+        type: "raster",
+        source: SUBSTRATE_ID,
+        paint: { "raster-opacity": 0.55 },
+        layout: { visibility: "none" },
+      });
+
       map.addSource(CIRCLE_SOURCE_ID, { type: "geojson", data: EMPTY_FC });
       map.addLayer({
         id: `${CIRCLE_SOURCE_ID}-fill`,
@@ -202,6 +221,11 @@ export default function MapPicker({ initialCenter, radiusM, onPick }: MapPickerP
     mapRef.current?.setLayoutProperty(MPA_ID, "visibility", showMpa ? "visible" : "none");
   }, [showMpa, mapReady]);
 
+  useEffect(() => {
+    if (!mapReady) return;
+    mapRef.current?.setLayoutProperty(SUBSTRATE_ID, "visibility", showSubstrate ? "visible" : "none");
+  }, [showSubstrate, mapReady]);
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-body text-foam/60">
@@ -231,6 +255,15 @@ export default function MapPicker({ initialCenter, radiusM, onPick }: MapPickerP
             className="accent-tide"
           />
           Aree protette (beta)
+        </label>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showSubstrate}
+            onChange={(e) => setShowSubstrate(e.target.checked)}
+            className="accent-tide"
+          />
+          Substrato fondale (beta)
         </label>
       </div>
 

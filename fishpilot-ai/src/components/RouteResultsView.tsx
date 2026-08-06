@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import RouteMap from "@/components/RouteMap";
 import PassageCalendarCard from "@/components/PassageCalendarCard";
@@ -8,6 +9,7 @@ import { useAppPreferences } from "@/components/AppPreferencesProvider";
 import { degToCompass, formatLocalTime } from "@/lib/utils";
 import { downloadGpx } from "@/lib/gpxExport";
 import { saveReuseSpot } from "@/lib/crossEcosystem";
+import { cacheActiveRoute } from "@/lib/activeRoute";
 import type { AppMode, RoutePlanResult } from "@/types/fishing";
 
 const SECTOR_LABELS: Record<string, string> = {
@@ -35,6 +37,12 @@ export default function RouteResultsView({ plan }: { plan: RoutePlanResult }) {
   const lastWaypoint = plan.waypoints[plan.waypoints.length - 1];
   const etaFinalISO = plan.legs[plan.legs.length - 1]?.etaISO ?? plan.departureISO;
   const anySeaRouted = plan.legs.some((leg) => leg.isSeaRouted);
+
+  // Rende questa la rotta "attiva" per il Chartplotter (Cross Track Error),
+  // finché non se ne calcola una nuova.
+  useEffect(() => {
+    cacheActiveRoute(plan);
+  }, [plan]);
 
   function useArrivalFor(target: AppMode) {
     saveReuseSpot({

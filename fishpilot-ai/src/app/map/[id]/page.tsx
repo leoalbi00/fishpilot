@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import FishingMap from "@/components/FishingMap";
 import { createClient } from "@/lib/supabase/server";
-import type { ZonePoint } from "@/types/fishing";
+import { findSeamarkFeatures } from "@/lib/seamarkFeatures";
+import type { SeamarkFeature, ZonePoint } from "@/types/fishing";
 
 interface MapReportRow {
   id: string;
@@ -37,6 +38,13 @@ export default async function MapPage({
 
   const trip = report.trips;
 
+  // Secche/scogli/relitti (OSM, best-effort — findSeamarkFeatures gestisce
+  // già internamente ogni errore restituendo un elenco vuoto): centro sulla
+  // media delle zone campionate.
+  const centerLat = report.zones.reduce((sum, z) => sum + z.latitude, 0) / report.zones.length;
+  const centerLng = report.zones.reduce((sum, z) => sum + z.longitude, 0) / report.zones.length;
+  const hazards: SeamarkFeature[] = await findSeamarkFeatures(centerLat, centerLng);
+
   return (
     <div className="min-h-screen flex flex-col bg-abyss">
       <Navbar />
@@ -68,7 +76,7 @@ export default async function MapPage({
       </div>
 
       <div className="flex-1 px-6 pb-8 max-w-6xl mx-auto w-full">
-        <FishingMap zones={report.zones} />
+        <FishingMap zones={report.zones} hazards={hazards} />
 
         <div className="flex flex-wrap gap-4 mt-4 text-xs font-mono text-foam/60">
           <span className="flex items-center gap-1.5">
@@ -83,12 +91,18 @@ export default async function MapPage({
             <span className="w-2.5 h-2.5 rounded-full bg-tide inline-block" />
             Score ≥ 70 — ottimo
           </span>
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden>☠️🪨⚠️🔺</span>
+            Relitti / Scogli / Ostruzioni / Secche (OSM)
+          </span>
         </div>
 
         <p className="text-xs text-foam/40 mt-3 font-body">
           {trip?.destination
             ? "Nota: nell'MVP il percorso è tracciato come linea diretta tra i punti campionati (partenza, metà rotta, destinazione); non usa ancora un'API di navigazione marina reale."
             : "Nota: modalità Spot Singolo, un solo punto campionato."}
+          {" "}Punti di interesse per la pesca da OpenStreetMap: censimento non ufficiale, verifica
+          sempre con ecoscandaglio e carta nautica.
         </p>
       </div>
     </div>

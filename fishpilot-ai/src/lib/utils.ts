@@ -70,6 +70,11 @@ export function kmhToKnots(kmh: number): number {
   return kmh / 1.852;
 }
 
+/** m/s -> nodi (velocità restituita in m/s da Geolocation.coords.speed). */
+export function msToKnots(ms: number): number {
+  return ms * 1.9438444924;
+}
+
 const COMPASS_LABELS = [
   "N",
   "NE",
