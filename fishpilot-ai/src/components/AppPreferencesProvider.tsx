@@ -15,16 +15,16 @@ interface PreferencesContextValue {
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 
-/** Preferenze applicative globali: modalità (Rada/Pesca/Combo) e tema
- * (Giorno/Sole Alto/Notte), persistite in localStorage e condivise tra
+/** Preferenze applicative globali: ecosistema (Traversata/Rada/Pesca) e
+ * tema (Giorno/Sole Alto/Notte), persistite in localStorage e condivise tra
  * Navbar e Dashboard senza ricaricare la pagina. */
 export function AppPreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<AppMode>("combo");
+  const [mode, setModeState] = useState<AppMode>("pesca");
   const [theme, setThemeState] = useState<ThemeMode>("day");
 
   useEffect(() => {
     const storedMode = window.localStorage.getItem(MODE_KEY);
-    if (storedMode === "rada" || storedMode === "pesca" || storedMode === "combo") {
+    if (storedMode === "traversata" || storedMode === "rada" || storedMode === "pesca") {
       setModeState(storedMode);
     }
     const storedTheme = window.localStorage.getItem(THEME_KEY);

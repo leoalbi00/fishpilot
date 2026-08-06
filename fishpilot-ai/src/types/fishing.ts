@@ -10,12 +10,8 @@ export type FishingTechnique =
   | "jigging"
   | "drifting";
 
-/** Modalità di ricerca nel form: uno spot singolo (default) oppure una tratta
- * partenza -> destinazione (modalità avanzata, facoltativa). */
-export type SearchMode = "spot" | "tratta";
-
-/** Modalità applicativa: Rada (ancoraggio/sicurezza), Pesca, o vista unificata. */
-export type AppMode = "rada" | "pesca" | "combo";
+/** Ecosistema applicativo: tre ambiti indipendenti dell'app. */
+export type AppMode = "traversata" | "rada" | "pesca";
 
 /** Tema visivo: Giorno (default), Sole Alto (altissimo contrasto), Notte
  * (toni rossi per preservare la visione notturna). */
@@ -195,4 +191,79 @@ export interface FavoriteSpot {
   /** Tipo di fondale registrato manualmente dall'utente (per la tenuta ancora). */
   seabedType: SeabedHoldingType;
   createdAt: string;
+}
+
+// ============================================================
+// ⛵ Ecosistema Traversata (Passage Planning)
+// ============================================================
+
+export interface RouteWaypoint {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+/** Settore del vento relativo alla prua (0°=di prua, 180°=di poppa). */
+export type RelativeWindSector = "prua" | "mure" | "traverso" | "poppa-quartiere" | "poppa";
+
+export interface RouteLeg {
+  from: string;
+  to: string;
+  distanceNm: number;
+  bearingDeg: number;
+  etaISO: string;
+  windSpeedKn: number;
+  windGustsKn: number;
+  windDirectionDeg: number;
+  relativeWindAngleDeg: number; // 0-180
+  relativeWindSector: RelativeWindSector;
+  waveHeightM: number;
+  wavePeriodS: number;
+  waveDirectionDeg: number;
+  currentSpeedKmh?: number;
+  currentDirectionDeg?: number;
+  seaSurfaceTempC: number;
+  warnings: string[];
+}
+
+export interface RoutePlan {
+  waypoints: RouteWaypoint[];
+  legs: RouteLeg[];
+  totalDistanceNm: number;
+  totalDurationHours: number;
+  cruiseSpeedKn: number;
+  fuelLPerHour?: number;
+  fuelLitersEstimate?: number;
+  departureISO: string;
+  etaFinalISO: string;
+  utcOffsetSeconds: number;
+}
+
+/** Porto/marina di rifugio nei pressi della rotta (fonte: OpenStreetMap). */
+export interface RefugePort {
+  name: string;
+  latitude: number;
+  longitude: number;
+  distanceNm: number;
+  /** Avviso derivato dalle previsioni lungo la rotta (non un bollettino ufficiale). */
+  warning?: string;
+}
+
+// ============================================================
+// ⚓ Previsione Notturna (Rada)
+// ============================================================
+
+export interface NightForecastPoint {
+  timeISO: string;
+  windSpeedKmh: number;
+  windGustsKmh: number;
+  windDirectionDeg: number;
+  waveHeightM: number;
+}
+
+export interface NightForecastResult {
+  points: NightForecastPoint[];
+  trend: "migliora" | "peggiora" | "stabile";
+  maxWindSpeedKmh: number;
+  maxWaveHeightM: number;
 }

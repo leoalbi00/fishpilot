@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { FishingTechnique, SearchMode } from "@/types/fishing";
+import { useAppPreferences } from "@/components/AppPreferencesProvider";
+import type { FishingTechnique } from "@/types/fishing";
 
 const TECHNIQUES: { value: FishingTechnique; label: string }[] = [
   { value: "traina", label: "Traina" },
@@ -15,20 +16,16 @@ const TECHNIQUES: { value: FishingTechnique; label: string }[] = [
 const inputClasses =
   "w-full rounded-lg bg-abyss/60 border border-hull/50 px-4 py-3 text-foam placeholder:text-foam/30 font-body focus:border-signal focus:ring-1 focus:ring-signal outline-none transition-colors";
 
+/** Form dello spot analizzato in ⚓ Rada e 🎣 Pesca (le rotte multi-waypoint
+ * vivono nell'ecosistema ⛵ Traversata, vedi RouteForm). */
 export default function TripForm() {
   const router = useRouter();
+  const { mode } = useAppPreferences();
 
-  const [mode, setMode] = useState<SearchMode>("spot");
-
-  // Modalità Spot Singolo (default)
   const [location, setLocation] = useState("");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
-
-  // Modalità Tratta (avanzata)
-  const [startLocation, setStartLocation] = useState("");
-  const [destination, setDestination] = useState("");
 
   const [technique, setTechnique] = useState<FishingTechnique>("bolentino");
   const [date, setDate] = useState("");
@@ -80,24 +77,14 @@ export default function TripForm() {
       setError("Compila data e ora prima di analizzare.");
       return;
     }
-
-    let body: Record<string, unknown>;
-
-    if (mode === "tratta") {
-      if (!startLocation.trim() || !destination.trim()) {
-        setError("Compila partenza e destinazione prima di analizzare.");
-        return;
-      }
-      body = { mode, startLocation, destination, technique, date, time };
-    } else {
-      if (!coords && !location.trim()) {
-        setError("Indica uno spot oppure usa la geolocalizzazione.");
-        return;
-      }
-      body = coords
-        ? { mode, coords, technique, date, time }
-        : { mode, location, technique, date, time };
+    if (!coords && !location.trim()) {
+      setError("Indica uno spot oppure usa la geolocalizzazione.");
+      return;
     }
+
+    const body = coords
+      ? { mode: "spot", coords, technique, date, time }
+      : { mode: "spot", location, technique, date, time };
 
     setLoading(true);
     try {
@@ -125,110 +112,53 @@ export default function TripForm() {
       onSubmit={handleSubmit}
       className="w-full max-w-xl rounded-2xl border border-hull/40 bg-depth/70 backdrop-blur-sm p-6 sm:p-8 space-y-5 shadow-[0_0_40px_rgba(0,0,0,0.35)]"
     >
-      <div className="grid grid-cols-2 gap-2 rounded-lg border border-hull/50 p-1">
-        <button
-          type="button"
-          onClick={() => setMode("spot")}
-          aria-pressed={mode === "spot"}
-          className={`min-h-[44px] rounded-md px-3 py-2 text-sm font-body transition-colors active:scale-[0.97] ${
-            mode === "spot"
-              ? "bg-signal text-abyss font-medium"
-              : "text-foam/60 hover:text-foam"
-          }`}
-        >
-          Spot Singolo
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("tratta")}
-          aria-pressed={mode === "tratta"}
-          className={`min-h-[44px] rounded-md px-3 py-2 text-sm font-body transition-colors active:scale-[0.97] ${
-            mode === "tratta"
-              ? "bg-signal text-abyss font-medium"
-              : "text-foam/60 hover:text-foam"
-          }`}
-        >
-          Tratta (avanzata)
-        </button>
-      </div>
-
-      {mode === "spot" ? (
-        <div className="space-y-2">
-          <label className="block">
-            <span className="block text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
-              Dove ti trovi / Dove vuoi pescare
-            </span>
-            {coords ? (
-              <div className="flex items-center justify-between rounded-lg bg-abyss/60 border border-tide/50 px-4 py-3">
-                <span className="text-tide font-mono text-sm">
-                  📍 Posizione GPS acquisita ({coords.lat.toFixed(3)}, {coords.lng.toFixed(3)})
-                </span>
-                <button
-                  type="button"
-                  onClick={clearCoords}
-                  aria-label="Rimuovi posizione GPS"
-                  className="text-foam/50 hover:text-foam text-sm ml-3"
-                >
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="Es. Massa Lubrense (NA)"
-                className={inputClasses}
-              />
-            )}
-          </label>
-
-          {!coords && (
-            <button
-              type="button"
-              onClick={handleGeolocate}
-              disabled={locating}
-              className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-lg border border-tide/50 text-tide px-4 py-2.5 text-sm font-body hover:bg-tide/10 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              📍 {locating ? "Rilevamento in corso…" : "Usa la mia posizione attuale"}
-            </button>
-          )}
-
-          {locateError && (
-            <p className="text-danger text-xs font-body" role="alert">
-              {locateError}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="block">
-            <span className="block text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
-              Partenza
-            </span>
+      <div className="space-y-2">
+        <label className="block">
+          <span className="block text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
+            Dove ti trovi / Dove vuoi pescare
+          </span>
+          {coords ? (
+            <div className="flex items-center justify-between rounded-lg bg-abyss/60 border border-tide/50 px-4 py-3">
+              <span className="text-tide font-mono text-sm">
+                📍 Posizione GPS acquisita ({coords.lat.toFixed(3)}, {coords.lng.toFixed(3)})
+              </span>
+              <button
+                type="button"
+                onClick={clearCoords}
+                aria-label="Rimuovi posizione GPS"
+                className="text-foam/50 hover:text-foam text-sm ml-3"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
             <input
               type="text"
-              value={startLocation}
-              onChange={(e) => setStartLocation(e.target.value)}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
               placeholder="Es. Massa Lubrense (NA)"
               className={inputClasses}
             />
-          </label>
+          )}
+        </label>
 
-          <label className="block">
-            <span className="block text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
-              Destinazione
-            </span>
-            <input
-              type="text"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
-              placeholder="Es. Maratea (PZ)"
-              className={inputClasses}
-            />
-          </label>
-        </div>
-      )}
+        {!coords && (
+          <button
+            type="button"
+            onClick={handleGeolocate}
+            disabled={locating}
+            className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-lg border border-tide/50 text-tide px-4 py-2.5 text-sm font-body hover:bg-tide/10 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            📍 {locating ? "Rilevamento in corso…" : "Usa la mia posizione attuale"}
+          </button>
+        )}
+
+        {locateError && (
+          <p className="text-danger text-xs font-body" role="alert">
+            {locateError}
+          </p>
+        )}
+      </div>
 
       <div>
         <span className="block text-xs font-mono uppercase tracking-widest text-foam/50 mb-1.5">
@@ -290,7 +220,11 @@ export default function TripForm() {
         disabled={loading}
         className="w-full min-h-[52px] rounded-lg bg-signal text-abyss font-display font-semibold py-3.5 text-base tracking-wide transition-all hover:shadow-[0_0_25px_rgba(255,178,56,0.45)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? "Analisi in corso…" : "Analizza pesca"}
+        {loading
+          ? "Analisi in corso…"
+          : mode === "rada"
+            ? "⚓ Analizza rada"
+            : "🎣 Analizza pesca"}
       </button>
     </form>
   );

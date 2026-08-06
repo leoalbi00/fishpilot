@@ -180,8 +180,46 @@ create policy "Anyone can delete favorite spots (MVP)"
   using (true);
 
 -- ============================================================
+-- 5. ROUTE_PLANS
+-- Ecosistema "Traversata" (passage planning): rotta a più waypoint con
+-- metriche di navigazione e meteo-mare stimato per leg. waypoints/legs/
+-- refuge_ports sono jsonb (stessa scelta di zones/species/recommendations
+-- in fishing_reports): struttura ricca, nessun bisogno di query relazionali.
+-- ============================================================
+create table if not exists public.route_plans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.users (id) on delete set null,
+  cruise_speed_kn double precision not null check (cruise_speed_kn > 0),
+  fuel_l_per_hour double precision,
+  waypoints jsonb not null,
+  legs jsonb not null,
+  refuge_ports jsonb not null default '[]'::jsonb,
+  total_distance_nm double precision not null,
+  total_duration_hours double precision not null,
+  fuel_liters_estimate double precision,
+  departure timestamptz not null,
+  -- Offset UTC (secondi) della zona di partenza: per mostrare gli orari
+  -- locali dei leg senza dover ricalcolare/richiamare Open-Meteo in pagina.
+  utc_offset_seconds integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table public.route_plans enable row level security;
+
+drop policy if exists "Anyone can insert route plans (MVP)" on public.route_plans;
+create policy "Anyone can insert route plans (MVP)"
+  on public.route_plans for insert
+  with check (true);
+
+drop policy if exists "Anyone can read route plans (MVP)" on public.route_plans;
+create policy "Anyone can read route plans (MVP)"
+  on public.route_plans for select
+  using (true);
+
+-- ============================================================
 -- Indici utili
 -- ============================================================
 create index if not exists trips_user_id_idx on public.trips (user_id);
 create index if not exists fishing_reports_trip_id_idx on public.fishing_reports (trip_id);
 create index if not exists favorite_spots_device_id_idx on public.favorite_spots (device_id);
+create index if not exists route_plans_user_id_idx on public.route_plans (user_id);

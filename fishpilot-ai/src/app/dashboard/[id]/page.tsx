@@ -8,6 +8,8 @@ import DashboardModeView from "@/components/DashboardModeView";
 import { createClient } from "@/lib/supabase/server";
 import { computeSolunar } from "@/lib/solunar";
 import { computeTide } from "@/lib/tides";
+import { computeNightForecast } from "@/lib/nightForecast";
+import type { NightForecastResult } from "@/types/fishing";
 import type {
   ConditionsSummary,
   FishingTechnique,
@@ -81,6 +83,19 @@ export default async function DashboardPage({
   const solunar = computeSolunar(referenceDate, spotLatitude, spotLongitude);
   const tide = computeTide(referenceDate, spotLongitude);
 
+  // Previsione notturna: richiede rete (a differenza di solunari/maree, pura
+  // astronomia); non deve mai far fallire il rendering dell'intera pagina.
+  let nightForecast: NightForecastResult;
+  try {
+    nightForecast = await computeNightForecast(
+      referenceDate.toISOString().slice(0, 10),
+      spotLatitude,
+      spotLongitude
+    );
+  } catch {
+    nightForecast = { points: [], trend: "stabile", maxWindSpeedKmh: 0, maxWaveHeightM: 0 };
+  }
+
   const formattedDate = trip
     ? new Date(trip.date).toLocaleString("it-IT", {
         weekday: "long",
@@ -144,6 +159,7 @@ export default async function DashboardPage({
               spotLongitude={spotLongitude}
               solunar={solunar}
               tide={tide}
+              nightForecast={nightForecast}
               utcOffsetSeconds={utcOffsetSeconds}
             />
           </div>
